@@ -9,6 +9,10 @@ Last updated: 2026-10-26 (after completing Phase 0 and Phase 1)
 - **Goal:** Build the Private Sector Engagement (PSE) CRM & Performance Dashboard (modular monolith on Next.js App Router + Supabase Postgres/Auth/RLS + Vercel).
 - **Hard Deadline:** Wednesday, 28 Oct 2026, 11:59 PM (target submission by 8:00 PM).
 - **Package Manager Override:** Although `PHASES.md` and `IMPLEMENTATION_PLAN.md` mention `pnpm`, **this project uses `npm`** (`package-lock.json`, `npm run ...`, `npm ci` in GitHub Actions).
+- **Database & Auth Connection Override (Option 2 — URI Only):**
+  - The application connects to Supabase Cloud PostgreSQL **strictly via `DATABASE_URL`** (`postgresql://...`) using `pg` (`node-postgres`)—no `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_ROLE_KEY` required.
+  - Authentication uses PostgreSQL user/profile records (`scrypt` password hashes) + HMAC-SHA256 signed HTTP-only cookies (`pse_session`, signed with `AUTH_SECRET`).
+  - User-scoped database operations (`withUserTransaction(userId, fn)` in `src/shared/lib/supabase/server.ts`) set `request.jwt.claim.sub` and `app.current_user_id` inside each transaction so PostgreSQL Row-Level Security (RLS) and triggers enforce all permissions directly inside Postgres.
 - **Strict Design System (`DESIGN.md`):**
   - Flat, low-chroma CSS variables in `src/app/globals.css` (`:root` and `.dark`), `Inter` typeface (`tabular-nums` on all numbers/dates).
   - Hard bans enforced by `npm run lint:design` (`scripts/check-design-bans.mjs`): no gradients, blur/glassmorphism, pulsing/pinging animations, or `shadow-lg/xl/2xl`.

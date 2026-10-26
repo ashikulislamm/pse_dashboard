@@ -1,6 +1,8 @@
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createSupabaseServerClient } from '@/shared/lib/supabase/server';
+import { queryDb } from '@/shared/lib/supabase/admin';
 import type { AppRole, Database } from '@/types/database';
+import { SESSION_COOKIE_NAME, verifySessionToken } from './session';
 
 export type AuthenticatedProfile = Database['public']['Tables']['profiles']['Row'] & {
   email?: string;
@@ -17,40 +19,42 @@ export class AuthorizationError extends Error {
 }
 
 /**
- * Verifies that the current request has an authenticated Supabase session AND
- * belongs to an active PSE team member (`is_pse = true` and `is_active = true`).
+ * Verifies that the current request has a valid signed session cookie (`pse_session`)
+ * AND belongs to an active PSE team member in PostgreSQL (`is_pse = true` and `is_active = true`).
  * Redirects unauthenticated users to `/login` and non-PSE users to `/no-access`.
  */
 export async function requireUser(): Promise<AuthenticatedProfile> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const rawToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const session = verifySessionToken(rawToken);
 
-  if (authError || !user) {
+  if (!session) {
     redirect('/login');
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single<Database['public']['Tables']['profiles']['Row']>();
+  const { rows } = await queryDb<Database['public']['Tables']['profiles']['Row']>(
+    `SELECT id, full_name, role, team_id, is_pse, is_active
+     FROM profiles
+     WHERE id = $1
+     LIMIT 1`,
+    [session.userId],
+  );
 
-  if (profileError || !profile || !profile.is_pse || !profile.is_active) {
+  const profile = rows[0];
+
+  if (!profile || !profile.is_pse || !profile.is_active) {
     redirect('/no-access');
   }
 
   return {
     ...profile,
-    email: user.email,
+    email: session.email,
   };
 }
 
 /**
  * Verifies that the authenticated PSE user holds one of the allowed `roles`.
- * Throws `AuthorizationError` when used inside Server Actions, or redirects/blocks when unauthorized.
+ * Throws `AuthorizationError` if the user's role is not in `allowedRoles`.
  */
 export async function requireRole(...allowedRoles: AppRole[]): Promise<AuthenticatedProfile> {
   const profile = await requireUser();
@@ -64,3 +68,12 @@ export async function requireRole(...allowedRoles: AppRole[]): Promise<Authentic
 
   return profile;
 }
+
+export {
+  SESSION_COOKIE_NAME,
+  signSessionToken,
+  verifySessionToken,
+  hashPassword,
+  verifyPassword,
+  type SessionPayload,
+} from './session';

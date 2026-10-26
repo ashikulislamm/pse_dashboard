@@ -73,6 +73,10 @@ const eslintConfig = defineConfig([
         {
           paths: [
             {
+              name: 'pg',
+              message: 'Only repository.ts or shared/lib/supabase may import pg.',
+            },
+            {
               name: '@supabase/supabase-js',
               message: 'Only repository.ts or shared/lib/supabase may import @supabase/supabase-js.',
             },

@@ -1,19 +1,10 @@
-import { createBrowserClient } from '@supabase/ssr';
-import type { Database } from '@/types/database';
-
 /**
- * Browser-side Supabase client using public anon key.
- * All queries are subject to PostgreSQL Row-Level Security (RLS).
+ * Browser-side placeholder: With URI-only PostgreSQL architecture (`DATABASE_URL`),
+ * all database queries and auth operations execute on the server via Server Components
+ * and Server Actions so database credentials never leave the server.
  */
-export function createSupabaseBrowserClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.',
-    );
-  }
-
-  return createBrowserClient<Database>(url, anonKey);
+export function createSupabaseBrowserClient(): never {
+  throw new Error(
+    'Direct browser DB connections are disabled. Use Server Components or Server Actions via DATABASE_URL.',
+  );
 }
