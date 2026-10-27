@@ -1,13 +1,15 @@
-import { EmptyState, PageHeader } from '@/shared/ui';
+import { ContactsView, getContactsListPageData } from '@/modules/contacts';
 
-export default function ContactsPage() {
+export default async function ContactsPage() {
+  const { contacts, companies, industries, companyOptions } =
+    await getContactsListPageData();
+
   return (
-    <div>
-      <PageHeader
-        title="Contacts"
-        description="Donors, sponsors, partner organizations, and points of contact."
-      />
-      <EmptyState message="No contacts yet. Create the first one." />
-    </div>
+    <ContactsView
+      contacts={contacts}
+      companies={companies}
+      industries={industries}
+      companyOptions={companyOptions}
+    />
   );
 }

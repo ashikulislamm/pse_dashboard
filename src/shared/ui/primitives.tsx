@@ -44,7 +44,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={type}
         disabled={disabled || loading}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50',
+          'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-100 outline-none focus:outline-none focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
           BUTTON_VARIANTS[variant],
           BUTTON_SIZES[size],
           className,
@@ -69,7 +69,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         ref={ref}
         className={cn(
-          'h-9 w-full rounded-sm border bg-background px-3 text-[14px] leading-5 text-foreground placeholder:text-subtle-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-60',
+          'h-9 w-full rounded-sm border bg-background px-3 text-[14px] leading-5 text-foreground outline-none placeholder:text-subtle-foreground focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-60',
           hasError ? 'border-negative' : 'border-border-strong',
           className,
         )}
@@ -90,7 +90,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          'h-9 w-full rounded-sm border bg-background px-3 text-[14px] leading-5 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-60',
+          'h-9 w-full rounded-sm border bg-background px-3 text-[14px] leading-5 text-foreground outline-none focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-60',
           hasError ? 'border-negative' : 'border-border-strong',
           className,
         )}
@@ -114,7 +114,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         ref={ref}
         rows={rows}
         className={cn(
-          'w-full rounded-sm border bg-background p-3 text-[14px] leading-5 text-foreground placeholder:text-subtle-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-60',
+          'w-full rounded-sm border bg-background p-3 text-[14px] leading-5 text-foreground outline-none placeholder:text-subtle-foreground focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-60',
           hasError ? 'border-negative' : 'border-border-strong',
           className,
         )}

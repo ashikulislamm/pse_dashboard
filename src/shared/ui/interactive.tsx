@@ -197,7 +197,7 @@ export function Combobox({
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          'flex h-9 w-full items-center justify-between rounded-sm border bg-background px-3 text-left text-[14px] leading-5 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+          'flex h-9 w-full items-center justify-between rounded-sm border bg-background px-3 text-left text-[14px] leading-5 text-foreground outline-none focus:outline-none focus-visible:outline-none',
           hasError ? 'border-negative' : 'border-border-strong',
         )}
       >

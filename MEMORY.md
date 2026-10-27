@@ -16,6 +16,7 @@ Last updated: 2026-10-27 (after completing Phase 0, Phase 1, and Phase 2)
 - **Strict Design System (`DESIGN.md`):**
   - Flat, low-chroma CSS variables in `src/app/globals.css` (`:root` and `.dark`), `Inter` typeface (`tabular-nums` on all numbers/dates).
   - Hard bans enforced by `npm run lint:design` (`scripts/check-design-bans.mjs`): no gradients, blur/glassmorphism, pulsing/pinging animations, or `shadow-lg/xl/2xl`.
+  - **No focus outline ring on click:** All inputs (`Input`), dropdowns (`Select`, `Combobox`, `ContactPicker`), `Textarea`, and `Button` components use `outline-none focus:outline-none focus-visible:outline-none` (no blue focus ring on click).
   - All money and dates MUST be formatted exclusively through `<Money />` (`formatMoney`) and `<DateText />` (`formatDateText`) from `@/shared/ui`.
 
 ---
@@ -26,9 +27,9 @@ Last updated: 2026-10-27 (after completing Phase 0, Phase 1, and Phase 2)
 |---|---|---|---|
 | **P0** | Lock decisions & scope (`docs/ASSUMPTIONS.md`, `docs/00-scope-and-assumptions.md`) | **Completed** | All ambiguity defaults and in/out-of-scope rules documented. |
 | **P1** | Project initialization, infra, shared helpers & design system setup | **Completed** | Next.js 16.4.3, Tailwind v4, module skeleton, shared libs, shared UI, ESLint boundaries. |
-| **P2** | Database migrations (`001`–`006`), seed scripts, Auth, RBAC, AppShell | **Completed** | All 6 SQL migrations + reference seed + demo dataset pushed to Supabase Cloud DB; 10 DB & RLS invariant tests passing; `/login`, `/no-access`, `middleware.ts`, role-aware `AppShell`, and `/admin` user & config screen implemented. |
-| **P3** | Contacts module & `ContactPicker` | **Pending (Next)** | Individual/Company form, channel repeater, E.164/email dedupe, inline create. |
-| **P4** | Pipelines & Receipts module | Pending | Expected value > 0, Cash/In-kind valuation note, stage history, receipts = achievement. |
+| **P2** | Database migrations (`001`–`006`), seed scripts, Auth, RBAC, AppShell | **Completed** | All 6 SQL migrations + reference seed + demo dataset pushed to Supabase Cloud DB; 10 DB & RLS invariant tests passing; `/login`, `/no-access`, `src/proxy.ts`, role-aware `AppShell`, and `/admin` user & config screen implemented. |
+| **P3** | Contacts module & `ContactPicker` | **Completed** | Individual/Company conditional form, channel repeater (`>= 1` email/phone), E.164/email deduplication with "Open contact" / "Use existing" alert, inline company creation, reusable `<ContactPicker />` with inline create, `/contacts` list + filters, and `/contacts/[id]` detail page with related records tabs. |
+| **P4** | Pipelines & Receipts module | **Pending (Next)** | Expected value > 0, Cash/In-kind valuation note, stage history, receipts = achievement. |
 | **P5** | Meetings & Activities modules | Pending | Meetings (`contact_id` OR `pipeline_id`), Activities (11 types, 3 classes). |
 | **P6** | Targets wizard & lock | Pending | Annual → Q1–Q4 → Members → Verticals (%), largest-remainder rounding, DB lock trigger. |
 | **P7** | Two-lens Dashboard & SQL read functions (`007`) | Pending | Monetary & Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual views. |
@@ -73,6 +74,16 @@ All demo accounts use password: `Password123!`
 - `src/modules/auth/{schema,repository,service,actions,queries,index}.ts` — `signInAction`, `signOutAction`, `createUserAction`, `updateUserRoleAction`, `getAuthenticatedUser`, `getActivePseTeamMembers`, `getAdminPageData`.
 - `src/modules/auth/components/{login-form,admin-users-panel}.tsx` — `<LoginForm />` (with 1-click demo credential autofill) and `<AdminUsersPanel />` (team role/PSE access management + reference config tables).
 - `src/app/no-access/page.tsx` — Blocked screen for non-PSE users with sign-out button.
+
+### Contacts Module (`src/modules/contacts/` & `/contacts`)
+- `src/modules/contacts/{schema,service,repository,actions,queries,index}.ts`
+  - `contactFormSchema`, `normalizeContactChannels`, `prepareContactPayload`, `canEditContact` (tested in `src/modules/contacts/contacts.test.ts`).
+  - `listContacts`, `getContactDetail`, `findByNormalizedChannels`, `createContactRecord`, `updateContactRecord`, `searchContactsLite`, `listFilterMetadata`.
+  - `createContactAction`, `updateContactAction`, `searchContactsAction` (invalidates `CACHE_TAGS.contacts` and `CACHE_TAGS.dashboard`).
+- `src/modules/contacts/components/`
+  - `contact-form.tsx` — Type-conditional Individual/Company form, multi-channel repeater (`>= 1` channel), duplicate email/phone alert with `"Open contact"` / `"Use existing"`, and inline company creation.
+  - `contact-picker.tsx` — Reusable `<ContactPicker />` combobox exported via `@/modules/contacts` with live search and inline `"Create new contact"` flow.
+  - `contacts-view.tsx` & `contact-detail-view.tsx` — List view (`/contacts`) and Detail view (`/contacts/[id]`) with Related Records tabs (Pipelines, Meetings, Activities, and People for companies).
 
 ---
 
