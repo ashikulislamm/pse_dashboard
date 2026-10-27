@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after completing Phase 0, Phase 1, and Phase 2)
+Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, and fixing GitHub Actions CI lockfile sync)
 
 ---
 
@@ -8,7 +8,7 @@ Last updated: 2026-10-27 (after completing Phase 0, Phase 1, and Phase 2)
 
 - **Goal:** Build the Private Sector Engagement (PSE) CRM & Performance Dashboard (modular monolith on Next.js App Router + Supabase Cloud Postgres/RLS + Vercel).
 - **Hard Deadline:** Wednesday, 28 Oct 2026, 11:59 PM (target submission by 8:00 PM).
-- **Package Manager Override:** Uses **`npm`** (`package-lock.json`, `npm run ...`, `npm ci` in GitHub Actions).
+- **Package Manager Override:** Uses **`npm`** (`package-lock.json`, `.npmrc` with `legacy-peer-deps=true`, `npm run ...`, `npm ci` on Node 22 in GitHub Actions).
 - **Database & Auth Connection Override (Option 2 — Session Pooler URI Only, Typed SQL, HS256 JWT):**
   - Connects to Supabase Cloud PostgreSQL **strictly via the Session Pooler `DATABASE_URL` (port `5432`, IPv4-compatible)** using `pg` (`node-postgres`) and Typed Parameterized SQL inside each module's `repository.ts` (no separate ORM layer, and no external Supabase API keys required).
   - Authentication uses PostgreSQL `profiles` records (`scrypt` password hashes) + **standard RFC 7519 HS256 JWT** HTTP-only cookies (`pse_session`, signed with `AUTH_SECRET`).
