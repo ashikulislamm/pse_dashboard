@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after Phases 0-6 plus the security and infrastructure hardening pass below)
+Last updated: 2026-10-27 (after Phases 0-7 plus the security and infrastructure hardening pass below)
 
 ---
 
@@ -32,7 +32,7 @@ Last updated: 2026-10-27 (after Phases 0-6 plus the security and infrastructure 
 | **P4** | Pipelines & Receipts module | **Completed** | Money-only (`expected_amount > 0`) with `/activities` redirect hint, Cash vs. In-kind mandatory valuation note, Company (with POC & secondary contact via `<ContactPicker />`) vs. Individual, live FX conversion to BDT (`amount_base`), List & stage-grouped Board views with `<StageQuickSelect />`, stage history timeline, Won/Lost/Junk confirmation & reason dialogs, `pipeline_receipts` recording (`Won ৳ X · Received ৳ Y · Unrealized ৳ (X − Y)` + over-receipt flag), and cache tag invalidation. |
 | **P5** | Meetings & Activities modules | **Completed** | Meetings (`contact_id` OR `pipeline_id` required, derived read-only organization/designation from contact, Scheduled/Done tabs, 1-click `"Add follow-up"` activity shortcut); Activities (11 types, 3 non-monetary classes with `defaultActivityClassForType`, Excel tracker table view, `"My activities"` preset toggle, inline status updates, and pre-linked shortcuts from Contacts, Pipelines, and Meetings). |
 | **P6** | Targets wizard & lock | **Completed** | Annual → Q1–Q4 → Members → Verticals (%) → Review wizard (drafts saved server-side on every step), largest-remainder rounding, publish = lock (DB triggers + `publish_target_plan`), read-only published view for everyone, drafts visible only to admin/target_manager. |
-| **P7** | Two-lens Dashboard & SQL read functions (`008`) | Pending | Monetary & Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual views. |
+| **P7** | Two-lens Dashboard & SQL read functions (`009`) | **Completed** | Monetary + Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual, member and vertical filters in the URL, tagged `cached()` reads. Cache benchmarking and `docs/CACHING.md` are still P8. |
 | **P8** | Tagged server caching & performance benchmark | Pending | `cached()` + `invalidateTags()`, benchmark on seeded dataset (`docs/CACHING.md`). |
 | **P9** | Testing & hardening | Pending | Unit, DB invariant tests, Playwright E2E happy path, security & a11y checks. |
 | **P10** | Deployment & documentation | Pending | Prod Supabase + Vercel deploy, `PSE_Architecture.pdf`, Google Drive pack, `README.md`. |
@@ -123,6 +123,15 @@ All demo accounts use password: `Password123!`
 - Plan team = actor's `team_id` (fallback: first team) so `UNIQUE(year, team_id)` holds. Numerics are read with `::float8`. Tests: `targets.test.ts`, db-tests 11a/11b.
 - The seeded 2026 plan is already published and locked; sign in as `safina@pse.org` and open `/targets?year=2027` to try the wizard.
 
+### Dashboard Module (`src/modules/dashboard/` & `/dashboard`)
+- `009_dashboard_functions.sql`: `fn_achievement`, `fn_target` (quarter exact, month = quarter / 3, year = sum; published plans only), `fn_pipeline_by_kind`, `fn_won_unrealized`, `fn_lead_count`, `fn_meeting_summary`, `fn_activity_summary`, `fn_contacts_engaged`, `fn_member_workload`, `fn_trend`, `fn_fiscal_start_month`. Each KPI formula lives in one function (the Lead KPI is `fn_lead_count`). db-tests 12 checks them against a hand-computed rolled-back 2031 fixture.
+- `service.ts` (pure): `resolveDashboardFilters`, `periodWindow`, `fiscalPositionOf`, `computeAttainment` (never caps over-achievement), `buildMonetaryDashboard`, `buildNonMonetaryDashboard`, drill-down hrefs. `repository.ts` runs the functions on the owner pool (`queryDb`, `::float8` casts). `queries.ts` exposes `getDashboardData`: `requireUser()` first, then `cached()` reads keyed by filters only (tags: dashboard, receipts, pipelines, targets, meetings, activities, config).
+- URL filters: `period` (month|quarter|year), `year`, `index`, `member`, `vertical`, `lens` (monetary|non_monetary). Both lenses load together; the lens switch is client-side and only rewrites the URL.
+- Monetary lens: Target, Achieved, Attainment, Unachieved, Over-achieved, Won-not-yet-received, Leads, Open pipeline; target-vs-achievement by member and vertical (`TargetBar`), pipeline by stage kind (cash vs in-kind), 12-month trend. Non-monetary lens: meetings and completion, activities by type and class, visits/events/campaigns, contacts engaged, workload by member. Every chart has a "View as table".
+- Definitions: pipeline-by-kind and Leads count pipelines CREATED in the period (grouped by current stage kind); Won-not-yet-received covers deals WON in the period, floored at zero per deal; activities are dated by occurred_at, else due_at, else created_at, and cancelled ones are excluded. Month targets are rounded per line, so they can drift by a cent or two from an exact third.
+- Drill-down links exist only where the list page uses the same date basis (meetings, activities). Pipeline tiles do not link, because the pipelines list filters on expected close date.
+- Shared UI: `BarChart`/`LineChart` take `valueFormatter` and `tooltipFormatter`; `formatCompactNumber` (axes only) is in `shared/ui/money.tsx`.
+
 ## 5. Verification Commands
 
 Run these before completing any phase:
@@ -144,7 +153,7 @@ npm run build
 - **Passwords:** `hashPassword` / `verifyPassword` are async (`crypto.scrypt`). Login verifies against `DUMMY_PASSWORD_HASH` for unknown emails (no timing leak).
 - **Brute-force protection:** `login_attempts` table (migration `007_security_hardening.sql`); 5 failed attempts per email in 15 minutes locks sign-in for that email until the window passes.
 - **Credential hash isolation:** migration `007` revokes table-level `SELECT` on `profiles` from `authenticated` and grants every column except `password_hash`. Login and session checks use the owner connection and are unaffected.
-- **Migration ledger:** `npm run db:push` records applied files in `schema_migrations` and applies each file once, in a transaction. The reference seed (idempotent) still runs every time. Next migration number: `009` (dashboard SQL functions; `008_targets_publish_guard.sql` already added a role check to `publish_target_plan`).
+- **Migration ledger:** `npm run db:push` records applied files in `schema_migrations` and applies each file once, in a transaction. The reference seed (idempotent) still runs every time. Next migration number: `010` (`008` added a role check to `publish_target_plan`; `009` added the dashboard SQL functions).
 - **Lint boundaries now actually run:** elements use `mode: 'full'` and the `@/` alias is resolved. Cross-module deep imports (`@/modules/<name>/<file>`) are blocked; use `@/modules/<name>`.
 - **Cleanup:** removed duplicate `shared/lib/{money,phone,periods}.ts` re-export stubs (the `index.ts` folders remain); removed dev-text from the Dashboard empty state; README rewritten; stale pnpm / service-role / Supabase Auth wording fixed in `PHASES.md`, `ARCHITECURE.md`, `IMPLEMENTATION_PLAN.md`, `docs/ASSUMPTIONS.md`.
 - **Demo credentials are unchanged** and remain visible on `/login` (one-click fill) and in the README. Known trade-off: an attacker can lock a known email for 15 minutes by failing sign-in five times.

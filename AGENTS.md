@@ -19,7 +19,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | File | Why |
 |---|---|
 | [MEMORY.md](MEMORY.md) | Phase tracker, what exists, demo credentials, hardening notes. Update it when a phase finishes. |
-| [PHASES.md](PHASES.md) | Per-phase business rules and acceptance criteria (P7 Dashboard, P8 Caching are next). |
+| [PHASES.md](PHASES.md) | Per-phase business rules and acceptance criteria (P8 Caching is next). |
 | [ARCHITECURE.md](ARCHITECURE.md) | Architecture, invariants, cache-tag table (§10.3). The filename is misspelled on purpose; don't rename it. |
 | [DESIGN.md](DESIGN.md) | Design system. Hard bans are enforced in CI. |
 | [docs/ASSUMPTIONS.md](docs/ASSUMPTIONS.md) | Decisions taken where requirements were open. |
@@ -67,7 +67,7 @@ src/types          database.ts (hand-maintained to match migrations)
 - User-scoped work goes through `withUserTransaction(userId, fn)`, which sets role `authenticated` and the user id so Postgres RLS applies. Use the owner pool (`queryDb`) only for login/session checks and for reads that run after `requireUser()`.
 - Roles: `admin`, `target_manager`, `member`. All PSE members read all PSE data; writes are owner or admin; targets are admin/target_manager only. Non-PSE users get nothing.
 - Invariants live in the database (CHECKs, triggers, RLS). The UI and service layers mirror them for good messages but are never the only guard.
-- Schema changes are new numbered files in `supabase/migrations/` (next is `009`). Never edit an applied migration. `numeric` columns come back from `pg` as strings; cast with `::float8` or `::text` in SQL.
+- Schema changes are new numbered files in `supabase/migrations/` (next is `010`). Never edit an applied migration. `numeric` columns come back from `pg` as strings; cast with `::float8` or `::text` in SQL.
 - `SECURITY DEFINER` functions bypass RLS, so they must check the caller's role themselves.
 
 ## Business rules that must not drift

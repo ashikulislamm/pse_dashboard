@@ -61,3 +61,16 @@ export function Money({
     </span>
   );
 }
+
+const COMPACT_FORMATTER = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Compact number for chart axes only (`1.25M`). DESIGN.md §4: the full value must always be
+ * available elsewhere (table or tooltip), so never use this for figures a user reads as the answer.
+ */
+export function formatCompactNumber(value: number): string {
+  return COMPACT_FORMATTER.format(value);
+}

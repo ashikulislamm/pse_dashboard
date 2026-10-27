@@ -86,10 +86,7 @@ export function TargetBar({
         </span>
       </div>
       <div className="relative h-3 w-full rounded-sm bg-surface-2">
-        <div
-          className="h-full rounded-sm bg-primary"
-          style={{ width: `${achievedWidthPct}%` }}
-        />
+        <div className="h-full rounded-sm bg-primary" style={{ width: `${achievedWidthPct}%` }} />
         {target > 0 && (
           <div
             aria-label="Target marker"
@@ -102,12 +99,7 @@ export function TargetBar({
   );
 }
 
-const CHART_PALETTE = [
-  'var(--chart-1)',
-  'var(--chart-2)',
-  'var(--chart-3)',
-  'var(--chart-4)',
-];
+const CHART_PALETTE = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)'];
 
 export interface ChartSeries {
   key: string;
@@ -122,6 +114,10 @@ export interface BarChartProps {
   stacked?: boolean;
   height?: number;
   emptyMessage?: string;
+  /** Formats axis ticks and tooltip values (for example compact money). */
+  valueFormatter?: (value: number) => string;
+  /** Exact value shown in the tooltip; defaults to `valueFormatter`. */
+  tooltipFormatter?: (value: number) => string;
 }
 
 export function BarChart({
@@ -131,6 +127,8 @@ export function BarChart({
   stacked = false,
   height = 260,
   emptyMessage = 'No data for this period.',
+  valueFormatter,
+  tooltipFormatter,
 }: BarChartProps) {
   if (!data || data.length === 0) {
     return (
@@ -155,8 +153,14 @@ export function BarChart({
             tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
             axisLine={false}
             tickLine={false}
+            tickFormatter={valueFormatter ? (v) => valueFormatter(Number(v)) : undefined}
           />
           <Tooltip
+            formatter={
+              tooltipFormatter || valueFormatter
+                ? (v) => (tooltipFormatter ?? valueFormatter)!(Number(v))
+                : undefined
+            }
             contentStyle={{
               backgroundColor: 'var(--foreground)',
               color: 'var(--background)',
@@ -187,6 +191,10 @@ export interface LineChartProps {
   series: ChartSeries[];
   height?: number;
   emptyMessage?: string;
+  /** Formats axis ticks and tooltip values (for example compact money). */
+  valueFormatter?: (value: number) => string;
+  /** Exact value shown in the tooltip; defaults to `valueFormatter`. */
+  tooltipFormatter?: (value: number) => string;
 }
 
 export function LineChart({
@@ -195,6 +203,8 @@ export function LineChart({
   series,
   height = 260,
   emptyMessage = 'No data for this period.',
+  valueFormatter,
+  tooltipFormatter,
 }: LineChartProps) {
   if (!data || data.length === 0) {
     return (
@@ -219,8 +229,14 @@ export function LineChart({
             tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
             axisLine={false}
             tickLine={false}
+            tickFormatter={valueFormatter ? (v) => valueFormatter(Number(v)) : undefined}
           />
           <Tooltip
+            formatter={
+              tooltipFormatter || valueFormatter
+                ? (v) => (tooltipFormatter ?? valueFormatter)!(Number(v))
+                : undefined
+            }
             contentStyle={{
               backgroundColor: 'var(--foreground)',
               color: 'var(--background)',
