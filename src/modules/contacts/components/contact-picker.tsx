@@ -16,6 +16,7 @@ export interface ContactPickerProps {
   allowedType?: ContactType;
   placeholder?: string;
   companyOptions?: ContactLiteOption[];
+  defaultOrganizationId?: string | null;
   allowClear?: boolean;
   hasError?: boolean;
 }
@@ -33,6 +34,7 @@ export function ContactPicker({
   allowedType,
   placeholder = 'Select contact…',
   companyOptions = [],
+  defaultOrganizationId = null,
   allowClear = false,
   hasError = false,
 }: ContactPickerProps) {
@@ -223,7 +225,10 @@ export function ContactPicker({
               <ContactForm
                 mode="create"
                 fixedType={allowedType}
-                initialValues={{ name: query.trim() }}
+                initialValues={{
+                  name: query.trim(),
+                  organization_id: defaultOrganizationId,
+                }}
                 companyOptions={companyOptions}
                 compact
                 onSuccess={handleCreated}

@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, and fixing GitHub Actions CI lockfile sync)
+Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, and Phase 4)
 
 ---
 
@@ -29,8 +29,8 @@ Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, a
 | **P1** | Project initialization, infra, shared helpers & design system setup | **Completed** | Next.js 16.4.3, Tailwind v4, module skeleton, shared libs, shared UI, ESLint boundaries. |
 | **P2** | Database migrations (`001`–`006`), seed scripts, Auth, RBAC, AppShell | **Completed** | All 6 SQL migrations + reference seed + demo dataset pushed to Supabase Cloud DB; 10 DB & RLS invariant tests passing; `/login`, `/no-access`, `src/proxy.ts`, role-aware `AppShell`, and `/admin` user & config screen implemented. |
 | **P3** | Contacts module & `ContactPicker` | **Completed** | Individual/Company conditional form, channel repeater (`>= 1` email/phone), E.164/email deduplication with "Open contact" / "Use existing" alert, inline company creation, reusable `<ContactPicker />` with inline create, `/contacts` list + filters, and `/contacts/[id]` detail page with related records tabs. |
-| **P4** | Pipelines & Receipts module | **Pending (Next)** | Expected value > 0, Cash/In-kind valuation note, stage history, receipts = achievement. |
-| **P5** | Meetings & Activities modules | Pending | Meetings (`contact_id` OR `pipeline_id`), Activities (11 types, 3 classes). |
+| **P4** | Pipelines & Receipts module | **Completed** | Money-only (`expected_amount > 0`) with `/activities` redirect hint, Cash vs. In-kind mandatory valuation note, Company (with POC & secondary contact via `<ContactPicker />`) vs. Individual, live FX conversion to BDT (`amount_base`), List & stage-grouped Board views with `<StageQuickSelect />`, stage history timeline, Won/Lost/Junk confirmation & reason dialogs, `pipeline_receipts` recording (`Won ৳ X · Received ৳ Y · Unrealized ৳ (X − Y)` + over-receipt flag), and cache tag invalidation. |
+| **P5** | Meetings & Activities modules | **Pending (Next)** | Meetings (`contact_id` OR `pipeline_id`), Activities (11 types, 3 classes). |
 | **P6** | Targets wizard & lock | Pending | Annual → Q1–Q4 → Members → Verticals (%), largest-remainder rounding, DB lock trigger. |
 | **P7** | Two-lens Dashboard & SQL read functions (`007`) | Pending | Monetary & Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual views. |
 | **P8** | Tagged server caching & performance benchmark | Pending | `cached()` + `invalidateTags()`, benchmark on seeded dataset (`docs/CACHING.md`). |
@@ -55,7 +55,7 @@ All demo accounts use password: `Password123!`
 
 ---
 
-## 4. What Exists in the Codebase (P0, P1 & P2)
+## 4. What Exists in the Codebase (P0, P1, P2, P3 & P4)
 
 ### SQL Migrations & Database Scripts
 - `supabase/migrations/001_enums_and_config.sql` — 11 enums, `teams`, `profiles`, `settings`, `currencies`, `fx_rates`, `pipeline_stages`, `contribution_categories`, `verticals`, `category_vertical_map`.
@@ -84,6 +84,18 @@ All demo accounts use password: `Password123!`
   - `contact-form.tsx` — Type-conditional Individual/Company form, multi-channel repeater (`>= 1` channel), duplicate email/phone alert with `"Open contact"` / `"Use existing"`, and inline company creation.
   - `contact-picker.tsx` — Reusable `<ContactPicker />` combobox exported via `@/modules/contacts` with live search and inline `"Create new contact"` flow.
   - `contacts-view.tsx` & `contact-detail-view.tsx` — List view (`/contacts`) and Detail view (`/contacts/[id]`) with Related Records tabs (Pipelines, Meetings, Activities, and People for companies).
+
+### Pipelines & Receipts Module (`src/modules/pipelines/` & `/pipelines`)
+- `src/modules/pipelines/{schema,service,repository,actions,queries,index}.ts`
+  - `pipelineFormSchema`, `changeStageInputSchema`, `recordReceiptInputSchema`, `pipelineFilterSchema`.
+  - `resolveFxRate`, `computeBase`, `canMoveToKind`, `validateReceiptAllowed`, `computePipelineAchievementSummary`, `preparePipelinePayload`, `canEditPipeline` (tested in `src/modules/pipelines/pipelines.test.ts`).
+  - `listPipelineReferenceData`, `listPipelines`, `getPipelineDetail`, `createPipelineRecord`, `updatePipelineRecord`, `changePipelineStageRecord`, `addPipelineReceiptRecord`, `listPipelinesLite`.
+  - `createPipelineAction`, `updatePipelineAction`, `changePipelineStageAction`, `recordPipelineReceiptAction` (invalidating `CACHE_TAGS.pipelines`, `CACHE_TAGS.receipts`, `CACHE_TAGS.dashboard`, `CACHE_TAGS.contacts`).
+- `src/modules/pipelines/components/`
+  - `pipeline-form.tsx` — Money-only notice with link to `/activities`, Cash vs. In-kind valuation note, Company (with POC & secondary contact via `<ContactPicker />`) vs. Individual donor, live FX conversion preview to BDT.
+  - `stage-transition-dialog.tsx` — `<StageQuickSelect />` with confirmation dialog for Won (`won_at` + receipt unlock), required `lost_reason` modal for Lost, and optional reason modal for Junk/Abandoned.
+  - `record-receipt-dialog.tsx` — Realized receipt dialog (`pipeline_receipts`) with live BDT FX conversion and over-receipt notice.
+  - `pipelines-view.tsx` & `pipeline-detail-view.tsx` — `/pipelines` (KPI summary strip, filters, List table view, and stage-grouped Board view) and `/pipelines/[id]` (`Won ৳ X · Received ৳ Y · Unrealized ৳ (X − Y)` banner, `<TargetBar />`, stage history timeline, receipts table, and linked meetings/activities tabs).
 
 ---
 

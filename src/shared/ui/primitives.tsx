@@ -315,7 +315,7 @@ export function PageHeader({
   actions,
 }: {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
   return (
@@ -323,7 +323,7 @@ export function PageHeader({
       <div>
         <h1 className="text-[24px] leading-8 font-semibold text-foreground">{title}</h1>
         {description && (
-          <p className="mt-1 text-[14px] leading-5 text-muted-foreground">{description}</p>
+          <div className="mt-1 text-[14px] leading-5 text-muted-foreground">{description}</div>
         )}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}

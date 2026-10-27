@@ -246,6 +246,13 @@ export function ContactDetailView({
 
             {activeTab === 'pipelines' && (
               <div>
+                <div className="mb-3 flex items-center justify-end">
+                  <Link href={`/pipelines?new=1&contactId=${contact.id}`}>
+                    <Button variant="secondary" size="compact">
+                      New pipeline for {contact.name}
+                    </Button>
+                  </Link>
+                </div>
                 {contact.pipelines.length === 0 ? (
                   <p className="py-4 text-[13px] text-muted-foreground">
                     No pipelines linked to this contact yet.

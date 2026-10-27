@@ -1,3 +1,5 @@
+'use server';
+
 import { requireUser } from '@/shared/lib/rbac';
 import type { ContactType } from '@/types/database';
 import {
