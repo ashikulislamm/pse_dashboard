@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "db:push": "node --env-file=.env scripts/db-push.mjs",
     "db:seed": "node --env-file=.env scripts/seed-demo.mjs",
-    "db:test": "node --env-file=.env scripts/db-tests.mjs"
+    "db:test": "node --env-file=.env scripts/db-tests.mjs",
+    "db:bench": "node --env-file=.env scripts/benchmark-dashboard.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",

@@ -41,6 +41,12 @@ const loadFilterOptions = cached(
   [CACHE_TAGS.config],
 );
 
+const loadNameLookup = cached(
+  async () => getNameLookup(),
+  ['dashboard-name-lookup'],
+  [CACHE_TAGS.config],
+);
+
 const loadMonetary = cached(
   async (
     period: DashboardPeriodType,
@@ -53,7 +59,7 @@ const loadMonetary = cached(
     const window = periodWindow({ period, year, index }, fiscalStart);
     const [raw, names] = await Promise.all([
       fetchMonetaryRaw(window, member, vertical),
-      getNameLookup(),
+      loadNameLookup(),
     ]);
     return buildMonetaryDashboard(raw, names, window);
   },
@@ -80,7 +86,14 @@ const loadNonMonetary = cached(
     return buildNonMonetaryDashboard(raw, window);
   },
   ['dashboard-non-monetary'],
-  [CACHE_TAGS.dashboard, CACHE_TAGS.meetings, CACHE_TAGS.activities, CACHE_TAGS.contacts],
+  [
+    CACHE_TAGS.dashboard,
+    CACHE_TAGS.meetings,
+    CACHE_TAGS.activities,
+    CACHE_TAGS.contacts,
+    CACHE_TAGS.pipelines,
+    CACHE_TAGS.config,
+  ],
 );
 
 export async function getDashboardData(rawFilters: DashboardFilterInput) {

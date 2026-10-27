@@ -7,9 +7,9 @@ import {
   addPipelineReceiptRecord,
   changePipelineStageRecord,
   createPipelineRecord,
-  listPipelineReferenceData,
   updatePipelineRecord,
 } from './repository';
+import { getPipelineReferenceData } from './queries';
 import {
   changeStageInputSchema,
   pipelineFormSchema,
@@ -45,7 +45,7 @@ export async function createPipelineAction(
       };
     }
 
-    const refData = await listPipelineReferenceData(user.id);
+    const refData = await getPipelineReferenceData();
     const payload = preparePipelinePayload(parsed.data, refData.fxRates, refData.stages);
 
     const created = await createPipelineRecord(user.id, payload);
@@ -86,7 +86,7 @@ export async function updatePipelineAction(
       };
     }
 
-    const refData = await listPipelineReferenceData(user.id);
+    const refData = await getPipelineReferenceData();
     const payload = preparePipelinePayload(parsed.data, refData.fxRates, refData.stages);
 
     const updated = await updatePipelineRecord(user.id, pipelineId, payload);

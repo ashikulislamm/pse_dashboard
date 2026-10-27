@@ -1,3 +1,4 @@
+import { queryDb } from '@/shared/lib/supabase/admin';
 import { withUserTransaction } from '@/shared/lib/supabase/server';
 import type {
   ActivityClass,
@@ -157,6 +158,62 @@ export interface PipelineLiteOption {
   stage_name: string;
   stage_kind: StageKind;
   amount_base: number;
+}
+
+/**
+ * Fetches stages, categories (with mapped verticals), currencies, FX rates, and active PSE focal people
+ * on the server-only owner pool. Callers MUST authorize with `requireUser()` before invoking this.
+ */
+export async function fetchPipelineReferenceData(): Promise<PipelineReferenceData> {
+  const [stagesRes, categoriesRes, currenciesRes, fxRes, peopleRes] = await Promise.all([
+    queryDb<StageOption>(
+      `SELECT id, name, kind, position
+       FROM pipeline_stages
+       ORDER BY position ASC`,
+    ),
+    queryDb<CategoryOption>(
+      `SELECT
+         c.id,
+         c.name,
+         v.id AS vertical_id,
+         v.name AS vertical_name
+       FROM contribution_categories c
+       JOIN category_vertical_map m ON m.category_id = c.id
+       JOIN verticals v ON v.id = m.vertical_id
+       ORDER BY c.name ASC`,
+    ),
+    queryDb<CurrencyOption>(
+      `SELECT code, name
+       FROM currencies
+       ORDER BY CASE WHEN code = 'BDT' THEN 0 ELSE 1 END, code ASC`,
+    ),
+    queryDb<{ currency: string; rate_to_base: string; effective_from: string }>(
+      `SELECT
+         currency,
+         rate_to_base::text,
+         effective_from::text
+       FROM fx_rates
+       ORDER BY effective_from DESC`,
+    ),
+    queryDb<FocalPersonOption>(
+      `SELECT id, full_name, email, role
+       FROM profiles
+       WHERE is_pse = true AND is_active = true
+       ORDER BY full_name ASC`,
+    ),
+  ]);
+
+  return {
+    stages: stagesRes.rows,
+    categories: categoriesRes.rows,
+    currencies: currenciesRes.rows,
+    fxRates: fxRes.rows.map((r) => ({
+      currency: r.currency,
+      rate_to_base: Number(r.rate_to_base),
+      effective_from: r.effective_from,
+    })),
+    focalPeople: peopleRes.rows,
+  };
 }
 
 /**

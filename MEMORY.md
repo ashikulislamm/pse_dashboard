@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after Phases 0-7 plus the security and infrastructure hardening pass below)
+Last updated: 2026-10-27 (after Phases 0–8 plus the security and infrastructure hardening pass below)
 
 ---
 
@@ -33,7 +33,7 @@ Last updated: 2026-10-27 (after Phases 0-7 plus the security and infrastructure 
 | **P5** | Meetings & Activities modules | **Completed** | Meetings (`contact_id` OR `pipeline_id` required, derived read-only organization/designation from contact, Scheduled/Done tabs, 1-click `"Add follow-up"` activity shortcut); Activities (11 types, 3 non-monetary classes with `defaultActivityClassForType`, Excel tracker table view, `"My activities"` preset toggle, inline status updates, and pre-linked shortcuts from Contacts, Pipelines, and Meetings). |
 | **P6** | Targets wizard & lock | **Completed** | Annual → Q1–Q4 → Members → Verticals (%) → Review wizard (drafts saved server-side on every step), largest-remainder rounding, publish = lock (DB triggers + `publish_target_plan`), read-only published view for everyone, drafts visible only to admin/target_manager. |
 | **P7** | Two-lens Dashboard & SQL read functions (`009`) | **Completed** | Monetary + Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual, member and vertical filters in the URL, tagged `cached()` reads. Cache benchmarking and `docs/CACHING.md` are still P8. |
-| **P8** | Tagged server caching & performance benchmark | Pending | `cached()` + `invalidateTags()`, benchmark on seeded dataset (`docs/CACHING.md`). |
+| **P8** | Tagged server caching & performance benchmark | **Completed** | `010_dashboard_perf_indexes.sql`, single-round-trip lens queries, cached reference reads (`dashboard`, `pipelines`, `auth`), `cache.test.ts`, `scripts/benchmark-dashboard.mjs` (`npm run db:bench`), and `docs/CACHING.md` (warm cache p95 = `0.04 ms` on 10k contacts / 5k pipelines / 20k activities). |
 | **P9** | Testing & hardening | Pending | Unit, DB invariant tests, Playwright E2E happy path, security & a11y checks. |
 | **P10** | Deployment & documentation | Pending | Prod Supabase + Vercel deploy, `PSE_Architecture.pdf`, Google Drive pack, `README.md`. |
 | **P11** | Final submission | Pending | Pre-submission checklist verification. |
@@ -157,7 +157,23 @@ npm run build
 - **Lint boundaries now actually run:** elements use `mode: 'full'` and the `@/` alias is resolved. Cross-module deep imports (`@/modules/<name>/<file>`) are blocked; use `@/modules/<name>`.
 - **Cleanup:** removed duplicate `shared/lib/{money,phone,periods}.ts` re-export stubs (the `index.ts` folders remain); removed dev-text from the Dashboard empty state; README rewritten; stale pnpm / service-role / Supabase Auth wording fixed in `PHASES.md`, `ARCHITECURE.md`, `IMPLEMENTATION_PLAN.md`, `docs/ASSUMPTIONS.md`.
 - **Demo credentials are unchanged** and remain visible on `/login` (one-click fill) and in the README. Known trade-off: an attacker can lock a known email for 15 minutes by failing sign-in five times.
-- **Required after pulling:** run `npm run db:push` to apply migration `007`.
+- **Required after pulling:** run `npm run db:push` to apply migrations `007`–`010`. Next migration number: `011`.
+
+## 9. Phase 8 — Caching & Performance Optimization (2026-10-27)
+
+- **Migration `010_dashboard_perf_indexes.sql`:**
+  - Added covering & partial functional indexes (`idx_pipeline_receipts_received_covering`, `idx_pipelines_created_covering`, `idx_pipelines_won_covering`, `idx_meetings_scheduled_covering`, `idx_activities_effective_ts_covering`).
+  - Rewrote non-sargable `col::date BETWEEN p_start AND p_end` predicates on `timestamptz` columns to sargable `col >= p_start::timestamptz AND col < (p_end + 1)::timestamptz` range predicates across `fn_pipeline_by_kind`, `fn_won_unrealized`, `fn_lead_count`, `fn_meeting_summary`, `fn_activity_summary`, `fn_contacts_engaged`, `fn_member_workload`, and `fn_trend`.
+  - Refactored `fn_member_workload` and `fn_trend` from correlated subqueries to single-pass CTE aggregations.
+- **Single-Round-Trip Dashboard Repository (`src/modules/dashboard/repository.ts`):**
+  - Consolidated the 6 monetary SQL function calls in `fetchMonetaryRaw` into 1 SQL round-trip and the 4 non-monetary SQL function calls in `fetchNonMonetaryRaw` into 1 SQL round-trip (eliminating pool queueing on `max = 3` serverless pools and reducing cold DB latency from ~1,815 ms to ~391 ms over the remote pooler, with pure PostgreSQL execution time at `38.22 ms`).
+- **Cached Reference Reads & Write → Tag Invalidation:**
+  - Wrapped reference/config reads in `cached(..., [CACHE_TAGS.config])` across `dashboard` (`loadFiscalStart`, `loadFilterOptions`, `loadNameLookup`), `pipelines` (`loadPipelineReferenceData`), and `auth` (`loadActivePseTeamMembers`, `loadReferenceConfigSummary`), always gated by `requireUser()` / `requireRole('admin')` first.
+  - Updated `createUserAction` and `updateUserRoleAction` in `src/modules/auth/actions.ts` to invalidate both `CACHE_TAGS.config` and `CACHE_TAGS.dashboard` per `ARCHITECURE.md` §10.3.
+- **Tests, Benchmark & Documentation:**
+  - Added unit tests in `src/shared/lib/cache/cache.test.ts` (3 tests verifying key isolation, 300s default TTL, and immediate tag eviction).
+  - Added `scripts/benchmark-dashboard.mjs` (`npm run db:bench`) running inside a rolled-back transaction (`10,004 contacts`, `5,002 pipelines`, `3,001 receipts`, `5,001 meetings`, `20,001 activities`), recording `EXPLAIN (ANALYZE, BUFFERS)` plans, cold DB vs. warm cache timings (warm p95 = `0.04 ms`, well under the `300 ms` target), and live write → `invalidateTags` → fresh achievement verification.
+  - Documented the complete architecture, invalidation matrix, `EXPLAIN ANALYZE` plans, and benchmark numbers in `docs/CACHING.md`.
 
 ## 7. Loading States & Toasts (2026-10-27)
 

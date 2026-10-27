@@ -54,13 +54,18 @@ export async function listDashboardVerticals(): Promise<DashboardVerticalOption[
 
 /** Names for every member (including since-deactivated ones) and vertical, to label result rows. */
 export async function getNameLookup(): Promise<NameLookup> {
-  const [members, verticals] = await Promise.all([
-    queryDb<{ id: string; full_name: string }>(`SELECT id, full_name FROM profiles`),
-    queryDb<{ id: string; name: string }>(`SELECT id, name FROM verticals`),
-  ]);
+  const res = await queryDb<{
+    members: { id: string; full_name: string }[];
+    verticals: { id: string; name: string }[];
+  }>(
+    `SELECT
+       COALESCE((SELECT json_agg(row_to_json(m)) FROM (SELECT id, full_name FROM profiles) m), '[]'::json) AS members,
+       COALESCE((SELECT json_agg(row_to_json(v)) FROM (SELECT id, name FROM verticals) v), '[]'::json) AS verticals`,
+  );
+  const row = res.rows[0];
   return {
-    members: Object.fromEntries(members.rows.map((m) => [m.id, m.full_name])),
-    verticals: Object.fromEntries(verticals.rows.map((v) => [v.id, v.name])),
+    members: Object.fromEntries((row?.members ?? []).map((m) => [m.id, m.full_name])),
+    verticals: Object.fromEntries((row?.verticals ?? []).map((v) => [v.id, v.name])),
   };
 }
 
@@ -69,49 +74,72 @@ export async function fetchMonetaryRaw(
   member: string | null,
   vertical: string | null,
 ): Promise<MonetaryRaw> {
-  const range = [window.start, window.end, member, vertical];
+  const res = await queryDb<{
+    achievements: AchievementRow[];
+    targets: TargetRow[];
+    pipeline_by_kind: PipelineKindRow[];
+    won_unrealized: WonUnrealizedRow | null;
+    lead_count: number;
+    trend: TrendRow[];
+  }>(
+    `SELECT
+       COALESCE((
+         SELECT json_agg(row_to_json(r))
+         FROM (
+           SELECT user_id, vertical_id, achieved::float8 AS achieved
+           FROM fn_achievement($1::date, $2::date, $3::uuid, $4::uuid)
+         ) r
+       ), '[]'::json) AS achievements,
+       COALESCE((
+         SELECT json_agg(row_to_json(r))
+         FROM (
+           SELECT user_id, vertical_id, target::float8 AS target
+           FROM fn_target($5::int, $6::int, $7::int, $3::uuid, $4::uuid)
+         ) r
+       ), '[]'::json) AS targets,
+       COALESCE((
+         SELECT json_agg(row_to_json(r))
+         FROM (
+           SELECT kind, pipeline_count, expected_base::float8 AS expected_base,
+                  cash_base::float8 AS cash_base, in_kind_base::float8 AS in_kind_base
+           FROM fn_pipeline_by_kind($1::date, $2::date, $3::uuid, $4::uuid)
+         ) r
+       ), '[]'::json) AS pipeline_by_kind,
+       (
+         SELECT row_to_json(r)
+         FROM (
+           SELECT won_base::float8 AS won_base, received_base::float8 AS received_base,
+                  unrealized_base::float8 AS unrealized_base
+           FROM fn_won_unrealized($1::date, $2::date, $3::uuid, $4::uuid)
+         ) r
+       ) AS won_unrealized,
+       fn_lead_count($1::date, $2::date, $3::uuid, $4::uuid) AS lead_count,
+       COALESCE((
+         SELECT json_agg(row_to_json(r))
+         FROM (
+           SELECT month_index, month_start::text AS month_start, achieved::float8 AS achieved
+           FROM fn_trend($5::int, $3::uuid, $4::uuid)
+         ) r
+       ), '[]'::json) AS trend`,
+    [
+      window.start,
+      window.end,
+      member,
+      vertical,
+      window.targetYear,
+      window.targetQuarter,
+      window.targetMonth,
+    ],
+  );
 
-  const [achievements, targets, pipelineByKind, won, lead, trend] = await Promise.all([
-    queryDb<AchievementRow>(
-      `SELECT user_id, vertical_id, achieved::float8 AS achieved
-       FROM fn_achievement($1::date, $2::date, $3::uuid, $4::uuid)`,
-      range,
-    ),
-    queryDb<TargetRow>(
-      `SELECT user_id, vertical_id, target::float8 AS target
-       FROM fn_target($1::int, $2::int, $3::int, $4::uuid, $5::uuid)`,
-      [window.targetYear, window.targetQuarter, window.targetMonth, member, vertical],
-    ),
-    queryDb<PipelineKindRow>(
-      `SELECT kind, pipeline_count, expected_base::float8 AS expected_base,
-              cash_base::float8 AS cash_base, in_kind_base::float8 AS in_kind_base
-       FROM fn_pipeline_by_kind($1::date, $2::date, $3::uuid, $4::uuid)`,
-      range,
-    ),
-    queryDb<WonUnrealizedRow>(
-      `SELECT won_base::float8 AS won_base, received_base::float8 AS received_base,
-              unrealized_base::float8 AS unrealized_base
-       FROM fn_won_unrealized($1::date, $2::date, $3::uuid, $4::uuid)`,
-      range,
-    ),
-    queryDb<{ lead_count: number }>(
-      `SELECT fn_lead_count($1::date, $2::date, $3::uuid, $4::uuid) AS lead_count`,
-      range,
-    ),
-    queryDb<TrendRow>(
-      `SELECT month_index, month_start::text AS month_start, achieved::float8 AS achieved
-       FROM fn_trend($1::int, $2::uuid, $3::uuid)`,
-      [window.targetYear, member, vertical],
-    ),
-  ]);
-
+  const row = res.rows[0];
   return {
-    achievements: achievements.rows,
-    targets: targets.rows,
-    pipelineByKind: pipelineByKind.rows,
-    wonUnrealized: won.rows[0] ?? null,
-    leadCount: lead.rows[0]?.lead_count ?? 0,
-    trend: trend.rows,
+    achievements: row?.achievements ?? [],
+    targets: row?.targets ?? [],
+    pipelineByKind: row?.pipeline_by_kind ?? [],
+    wonUnrealized: row?.won_unrealized ?? null,
+    leadCount: row?.lead_count ?? 0,
+    trend: row?.trend ?? [],
   };
 }
 
@@ -119,33 +147,43 @@ export async function fetchNonMonetaryRaw(
   window: DashboardWindow,
   member: string | null,
 ): Promise<NonMonetaryRaw> {
-  const range = [window.start, window.end, member];
+  const res = await queryDb<{
+    meetings: MeetingRow[];
+    activities: ActivityRow[];
+    engaged: number;
+    workload: WorkloadRow[];
+  }>(
+    `SELECT
+       COALESCE((
+         SELECT json_agg(row_to_json(r))
+         FROM (
+           SELECT status, meeting_count
+           FROM fn_meeting_summary($1::date, $2::date, $3::uuid)
+         ) r
+       ), '[]'::json) AS meetings,
+       COALESCE((
+         SELECT json_agg(row_to_json(r))
+         FROM (
+           SELECT type, class, activity_count, distinct_contacts
+           FROM fn_activity_summary($1::date, $2::date, $3::uuid)
+         ) r
+       ), '[]'::json) AS activities,
+       fn_contacts_engaged($1::date, $2::date, $3::uuid) AS engaged,
+       COALESCE((
+         SELECT json_agg(row_to_json(r))
+         FROM (
+           SELECT user_id, full_name, meeting_count, activity_count
+           FROM fn_member_workload($1::date, $2::date, $3::uuid)
+         ) r
+       ), '[]'::json) AS workload`,
+    [window.start, window.end, member],
+  );
 
-  const [meetings, activities, engaged, workload] = await Promise.all([
-    queryDb<MeetingRow>(
-      `SELECT status, meeting_count FROM fn_meeting_summary($1::date, $2::date, $3::uuid)`,
-      range,
-    ),
-    queryDb<ActivityRow>(
-      `SELECT type, class, activity_count, distinct_contacts
-       FROM fn_activity_summary($1::date, $2::date, $3::uuid)`,
-      range,
-    ),
-    queryDb<{ engaged: number }>(
-      `SELECT fn_contacts_engaged($1::date, $2::date, $3::uuid) AS engaged`,
-      range,
-    ),
-    queryDb<WorkloadRow>(
-      `SELECT user_id, full_name, meeting_count, activity_count
-       FROM fn_member_workload($1::date, $2::date, $3::uuid)`,
-      range,
-    ),
-  ]);
-
+  const row = res.rows[0];
   return {
-    meetings: meetings.rows,
-    activities: activities.rows,
-    contactsEngaged: engaged.rows[0]?.engaged ?? 0,
-    workload: workload.rows,
+    meetings: row?.meetings ?? [],
+    activities: row?.activities ?? [],
+    contactsEngaged: row?.engaged ?? 0,
+    workload: row?.workload ?? [],
   };
 }

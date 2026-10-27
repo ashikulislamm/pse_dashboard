@@ -135,8 +135,9 @@ export async function createUserAction(
       isPse: parsed.data.is_pse,
     });
 
-    invalidateTags(CACHE_TAGS.config);
+    invalidateTags(CACHE_TAGS.config, CACHE_TAGS.dashboard);
     revalidatePath('/admin');
+    revalidatePath('/dashboard');
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to create user.';
@@ -178,8 +179,9 @@ export async function updateUserRoleAction(
       isActive: parsed.data.is_active,
     });
 
-    invalidateTags(CACHE_TAGS.config);
+    invalidateTags(CACHE_TAGS.config, CACHE_TAGS.dashboard);
     revalidatePath('/admin');
+    revalidatePath('/dashboard');
     return { ok: true };
   } catch (err) {
     return {
