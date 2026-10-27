@@ -212,6 +212,27 @@ async function runTests() {
     /target plan is locked/i,
   );
 
+  // 11. publish_target_plan is SECURITY DEFINER, so it carries its own role guard
+  await expectFailure(
+    '11a. Member cannot publish a target plan',
+    async (client) => {
+      await client.query('SET LOCAL ROLE authenticated');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [MEMBER_ID]);
+      await client.query('SELECT publish_target_plan($1)', [LOCKED_PLAN_ID]);
+    },
+    /only an admin or target manager/i,
+  );
+
+  await expectFailure(
+    '11b. Publishing an already locked plan is rejected',
+    async (client) => {
+      await client.query('SET LOCAL ROLE authenticated');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [ADMIN_ID]);
+      await client.query('SELECT publish_target_plan($1)', [LOCKED_PLAN_ID]);
+    },
+    /already locked/i,
+  );
+
   // 10. Moving pipeline to Lost without lost_reason is rejected by trigger
   await expectFailure(
     '10. Moving pipeline to Lost stage without lost_reason is rejected',

@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after Phases 0-5 plus the security and infrastructure hardening pass below)
+Last updated: 2026-10-27 (after Phases 0-6 plus the security and infrastructure hardening pass below)
 
 ---
 
@@ -31,7 +31,7 @@ Last updated: 2026-10-27 (after Phases 0-5 plus the security and infrastructure 
 | **P3** | Contacts module & `ContactPicker` | **Completed** | Individual/Company conditional form, channel repeater (`>= 1` email/phone), E.164/email deduplication with "Open contact" / "Use existing" alert, inline company creation, reusable `<ContactPicker />` with inline create, `/contacts` list + filters, and `/contacts/[id]` detail page with related records tabs. |
 | **P4** | Pipelines & Receipts module | **Completed** | Money-only (`expected_amount > 0`) with `/activities` redirect hint, Cash vs. In-kind mandatory valuation note, Company (with POC & secondary contact via `<ContactPicker />`) vs. Individual, live FX conversion to BDT (`amount_base`), List & stage-grouped Board views with `<StageQuickSelect />`, stage history timeline, Won/Lost/Junk confirmation & reason dialogs, `pipeline_receipts` recording (`Won ৳ X · Received ৳ Y · Unrealized ৳ (X − Y)` + over-receipt flag), and cache tag invalidation. |
 | **P5** | Meetings & Activities modules | **Completed** | Meetings (`contact_id` OR `pipeline_id` required, derived read-only organization/designation from contact, Scheduled/Done tabs, 1-click `"Add follow-up"` activity shortcut); Activities (11 types, 3 non-monetary classes with `defaultActivityClassForType`, Excel tracker table view, `"My activities"` preset toggle, inline status updates, and pre-linked shortcuts from Contacts, Pipelines, and Meetings). |
-| **P6** | Targets wizard & lock | **Pending (Next)** | Annual → Q1–Q4 → Members → Verticals (%), largest-remainder rounding, DB lock trigger. |
+| **P6** | Targets wizard & lock | **Completed** | Annual → Q1–Q4 → Members → Verticals (%) → Review wizard (drafts saved server-side on every step), largest-remainder rounding, publish = lock (DB triggers + `publish_target_plan`), read-only published view for everyone, drafts visible only to admin/target_manager. |
 | **P7** | Two-lens Dashboard & SQL read functions (`008`) | Pending | Monetary & Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual views. |
 | **P8** | Tagged server caching & performance benchmark | Pending | `cached()` + `invalidateTags()`, benchmark on seeded dataset (`docs/CACHING.md`). |
 | **P9** | Testing & hardening | Pending | Unit, DB invariant tests, Playwright E2E happy path, security & a11y checks. |
@@ -117,6 +117,12 @@ All demo accounts use password: `Password123!`
 
 ---
 
+### Targets Module (`src/modules/targets/` & `/targets`)
+- `schema.ts` (zod draft: year, annual, 4 quarters, member allocations with vertical %), `service.ts` (`validatePlan`, `summarizePlan`, `buildPlanLines` via `allocateByPercent`, `splitEvenly`, `allocationsFromLines`, `canManageTargets`; totals compared in whole cents), `repository.ts` (`saveTargetDraft` replaces quarters + lines in one transaction; `publishTargetPlanRecord` calls the SQL function), `actions.ts` (`saveTargetDraftAction`, `publishTargetPlanAction`, `discardTargetDraftAction`; `requireRole('admin','target_manager')`; invalidate `targets` + `dashboard`), `queries.ts` (`getTargetsPageData`; members only ever receive published plans).
+- `components/`: `target-wizard.tsx` (5 steps, always-visible "Remaining to allocate", draft autosaved on Next), `target-plan-summary.tsx` (read-only annual/quarter/member x vertical breakdown, also the review step), `targets-view.tsx` (year selector, published vs wizard vs empty).
+- Plan team = actor's `team_id` (fallback: first team) so `UNIQUE(year, team_id)` holds. Numerics are read with `::float8`. Tests: `targets.test.ts`, db-tests 11a/11b.
+- The seeded 2026 plan is already published and locked; sign in as `safina@pse.org` and open `/targets?year=2027` to try the wizard.
+
 ## 5. Verification Commands
 
 Run these before completing any phase:
@@ -138,7 +144,7 @@ npm run build
 - **Passwords:** `hashPassword` / `verifyPassword` are async (`crypto.scrypt`). Login verifies against `DUMMY_PASSWORD_HASH` for unknown emails (no timing leak).
 - **Brute-force protection:** `login_attempts` table (migration `007_security_hardening.sql`); 5 failed attempts per email in 15 minutes locks sign-in for that email until the window passes.
 - **Credential hash isolation:** migration `007` revokes table-level `SELECT` on `profiles` from `authenticated` and grants every column except `password_hash`. Login and session checks use the owner connection and are unaffected.
-- **Migration ledger:** `npm run db:push` records applied files in `schema_migrations` and applies each file once, in a transaction. The reference seed (idempotent) still runs every time. Next migration number: `008` (dashboard SQL functions).
+- **Migration ledger:** `npm run db:push` records applied files in `schema_migrations` and applies each file once, in a transaction. The reference seed (idempotent) still runs every time. Next migration number: `009` (dashboard SQL functions; `008_targets_publish_guard.sql` already added a role check to `publish_target_plan`).
 - **Lint boundaries now actually run:** elements use `mode: 'full'` and the `@/` alias is resolved. Cross-module deep imports (`@/modules/<name>/<file>`) are blocked; use `@/modules/<name>`.
 - **Cleanup:** removed duplicate `shared/lib/{money,phone,periods}.ts` re-export stubs (the `index.ts` folders remain); removed dev-text from the Dashboard empty state; README rewritten; stale pnpm / service-role / Supabase Auth wording fixed in `PHASES.md`, `ARCHITECURE.md`, `IMPLEMENTATION_PLAN.md`, `docs/ASSUMPTIONS.md`.
 - **Demo credentials are unchanged** and remain visible on `/login` (one-click fill) and in the README. Known trade-off: an attacker can lock a known email for 15 minutes by failing sign-in five times.
