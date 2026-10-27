@@ -1,27 +1,22 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-26 (after completing Phase 0 and Phase 1)
+Last updated: 2026-10-27 (after completing Phase 0, Phase 1, and Phase 2)
 
 ---
 
 ## 1. Project Context & Key Overrides
 
-- **Goal:** Build the Private Sector Engagement (PSE) CRM & Performance Dashboard (modular monolith on Next.js App Router + Supabase Postgres/Auth/RLS + Vercel).
+- **Goal:** Build the Private Sector Engagement (PSE) CRM & Performance Dashboard (modular monolith on Next.js App Router + Supabase Cloud Postgres/RLS + Vercel).
 - **Hard Deadline:** Wednesday, 28 Oct 2026, 11:59 PM (target submission by 8:00 PM).
-- **Package Manager Override:** Although `PHASES.md` and `IMPLEMENTATION_PLAN.md` mention `pnpm`, **this project uses `npm`** (`package-lock.json`, `npm run ...`, `npm ci` in GitHub Actions).
-- **Database & Auth Connection Override (Option 2 — URI Only):**
-  - The application connects to Supabase Cloud PostgreSQL **strictly via `DATABASE_URL`** (`postgresql://...`) using `pg` (`node-postgres`)—no `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_ROLE_KEY` required.
-  - Authentication uses PostgreSQL user/profile records (`scrypt` password hashes) + HMAC-SHA256 signed HTTP-only cookies (`pse_session`, signed with `AUTH_SECRET`).
-  - User-scoped database operations (`withUserTransaction(userId, fn)` in `src/shared/lib/supabase/server.ts`) set `request.jwt.claim.sub` and `app.current_user_id` inside each transaction so PostgreSQL Row-Level Security (RLS) and triggers enforce all permissions directly inside Postgres.
+- **Package Manager Override:** Uses **`npm`** (`package-lock.json`, `npm run ...`, `npm ci` in GitHub Actions).
+- **Database & Auth Connection Override (Option 2 — Session Pooler URI Only, Typed SQL, HS256 JWT):**
+  - Connects to Supabase Cloud PostgreSQL **strictly via the Session Pooler `DATABASE_URL` (port `5432`, IPv4-compatible)** using `pg` (`node-postgres`) and Typed Parameterized SQL inside each module's `repository.ts` (no separate ORM layer, and no external Supabase API keys required).
+  - Authentication uses PostgreSQL `profiles` records (`scrypt` password hashes) + **standard RFC 7519 HS256 JWT** HTTP-only cookies (`pse_session`, signed with `AUTH_SECRET`).
+  - User-scoped database operations (`withUserTransaction(userId, fn)` in `src/shared/lib/supabase/server.ts`) execute `SET LOCAL ROLE authenticated` and set `request.jwt.claim.sub` and `app.current_user_id` inside each transaction so PostgreSQL Row-Level Security (RLS) and triggers enforce all permissions directly inside Postgres.
 - **Strict Design System (`DESIGN.md`):**
   - Flat, low-chroma CSS variables in `src/app/globals.css` (`:root` and `.dark`), `Inter` typeface (`tabular-nums` on all numbers/dates).
   - Hard bans enforced by `npm run lint:design` (`scripts/check-design-bans.mjs`): no gradients, blur/glassmorphism, pulsing/pinging animations, or `shadow-lg/xl/2xl`.
   - All money and dates MUST be formatted exclusively through `<Money />` (`formatMoney`) and `<DateText />` (`formatDateText`) from `@/shared/ui`.
-- **Architecture Boundaries (`ARCHITECURE.md`):**
-  - Enforced by `eslint-plugin-boundaries` and `no-restricted-imports` in `eslint.config.mjs`.
-  - Direction: `src/app → src/modules/<name> → src/shared → src/types`.
-  - Only `**/repository.ts`, `src/shared/lib/supabase/**`, and `src/shared/lib/rbac/**` may import Supabase clients.
-  - `src/modules/**/service.ts` must remain framework-free (no `react`, `next`, or `@supabase/*` imports).
 
 ---
 
@@ -29,10 +24,10 @@ Last updated: 2026-10-26 (after completing Phase 0 and Phase 1)
 
 | Phase | Description | Status | Notes |
 |---|---|---|---|
-| **P0** | Lock decisions & scope (`docs/ASSUMPTIONS.md`, `docs/00-scope-and-assumptions.md`) | **Completed** | All 10 ambiguity defaults and in/out-of-scope rules documented. |
-| **P1** | Project initialization, infra, shared helpers & design system setup | **Completed** | Next.js 16.4.3, Tailwind v4, module skeleton, shared libs, shared UI, ESLint boundaries, 16 unit tests passing, production build verified. |
-| **P2** | Database migrations (`001`–`006`), seed scripts, Auth, RBAC, AppShell | **Pending (Next)** | SQL schema, triggers, RLS policies, `/login`, `middleware.ts`, `/no-access`, DB invariant tests. |
-| **P3** | Contacts module & `ContactPicker` | Pending | Individual/Company form, channel repeater, E.164/email dedupe, inline create. |
+| **P0** | Lock decisions & scope (`docs/ASSUMPTIONS.md`, `docs/00-scope-and-assumptions.md`) | **Completed** | All ambiguity defaults and in/out-of-scope rules documented. |
+| **P1** | Project initialization, infra, shared helpers & design system setup | **Completed** | Next.js 16.4.3, Tailwind v4, module skeleton, shared libs, shared UI, ESLint boundaries. |
+| **P2** | Database migrations (`001`–`006`), seed scripts, Auth, RBAC, AppShell | **Completed** | All 6 SQL migrations + reference seed + demo dataset pushed to Supabase Cloud DB; 10 DB & RLS invariant tests passing; `/login`, `/no-access`, `middleware.ts`, role-aware `AppShell`, and `/admin` user & config screen implemented. |
+| **P3** | Contacts module & `ContactPicker` | **Pending (Next)** | Individual/Company form, channel repeater, E.164/email dedupe, inline create. |
 | **P4** | Pipelines & Receipts module | Pending | Expected value > 0, Cash/In-kind valuation note, stage history, receipts = achievement. |
 | **P5** | Meetings & Activities modules | Pending | Meetings (`contact_id` OR `pipeline_id`), Activities (11 types, 3 classes). |
 | **P6** | Targets wizard & lock | Pending | Annual → Q1–Q4 → Members → Verticals (%), largest-remainder rounding, DB lock trigger. |
@@ -44,55 +39,44 @@ Last updated: 2026-10-26 (after completing Phase 0 and Phase 1)
 
 ---
 
-## 3. What Exists in the Codebase (P0 & P1)
+## 3. Demo Credentials (Seeded in Supabase Cloud DB)
 
-### Documentation & Config
-- `docs/ASSUMPTIONS.md` & `docs/00-scope-and-assumptions.md` — Scope statement and locked decisions.
-- `eslint.config.mjs` — Next.js + TypeScript + `eslint-plugin-boundaries` + `no-restricted-imports`.
-- `scripts/check-design-bans.mjs` — Scans `src/` for banned Tailwind classes (`DESIGN.md` §2 & §13.2).
-- `vitest.config.ts` — Vitest configuration with `@/*` path alias.
-- `.github/workflows/ci.yml` — GitHub Actions workflow (`npm ci`, `lint`, `lint:design`, `typecheck`, `test`, `build`).
-- `.env.example` & `supabase/config.toml` — Environment template and Supabase CLI config.
+All demo accounts use password: `Password123!`
 
-### Database Types
-- `src/types/database.ts` — Full TypeScript definitions for all tables (`teams`, `profiles`, `settings`, `currencies`, `fx_rates`, `pipeline_stages`, `contribution_categories`, `verticals`, `category_vertical_map`, `contacts`, `contact_channels`, `pipelines`, `pipeline_stage_history`, `pipeline_receipts`, `meetings`, `activities`, `target_plans`, `target_quarters`, `target_lines`), enums (`AppRole`, `ContactType`, `ChannelKind`, `StageKind`, `ContributionType`, `PartyType`, `PaymentInterval`, `MeetingStatus`, `ActivityType`, `ActivityClass`, `ActivityStatus`), and functions.
-
-### Shared Libraries (`src/shared/lib/`)
-- `src/shared/lib/supabase/{client,server,admin,index}.ts`
-  - `createSupabaseBrowserClient()` — Browser client (`@supabase/ssr`).
-  - `createSupabaseServerClient()` — Cookie-aware Server Component / Server Action client.
-  - `createSupabaseAdminClient()` — Server-only (`import 'server-only'`) service-role client for cached queries after `requireUser()`.
-- `src/shared/lib/cache/index.ts`
-  - `CACHE_TAGS` (`dashboard`, `pipelines`, `receipts`, `meetings`, `activities`, `targets`, `config`, `contacts`).
-  - `cached(fn, keyParts, tags, revalidate=300)` & `invalidateTags(...tags)`.
-- `src/shared/lib/rbac/index.ts`
-  - `requireUser()` — Authenticates user and checks `profile.is_pse && profile.is_active` (redirects to `/login` or `/no-access`).
-  - `requireRole(...allowedRoles)` — Verifies role (`admin`, `target_manager`, `member`), throws `AuthorizationError` if unauthorized.
-- `src/shared/lib/phone/index.ts` (re-exported at `src/shared/lib/phone.ts`)
-  - `normalizePhone(raw, defaultCountry='BD')` — E.164 normalization via `libphonenumber-js`.
-  - `normalizeEmail(raw)` — Trim + lowercase + format check.
-  - Tested in `src/shared/lib/phone/phone.test.ts`.
-- `src/shared/lib/money/index.ts` (re-exported at `src/shared/lib/money.ts`)
-  - `roundCurrency(value)`, `toBase(amount, currency, fxRate)`, `allocateByPercent(total, percents[])` (Largest Remainder Method with 0.00 drift).
-  - Tested in `src/shared/lib/money/money.test.ts`.
-- `src/shared/lib/periods/index.ts` (re-exported at `src/shared/lib/periods.ts`)
-  - `periodRange({ type, year, index, fiscalStartMonth })` & `quarterOf(date, fiscalStartMonth)`.
-  - Tested in `src/shared/lib/periods/periods.test.ts`.
-
-### Shared UI Wrappers (`src/shared/ui/`)
-- `src/shared/ui/money.tsx` — `<Money />` and `formatMoney()` (`৳ 1,250,000` for BDT; `USD 5,000 (৳ 600,000)` when `baseAmount` supplied; `—` when null).
-- `src/shared/ui/date-text.tsx` — `<DateText />` and `formatDateText()` (`26 Oct 2026` or `26 Oct 2026, 3:30 PM`).
-- `src/shared/ui/primitives.tsx` — `Button`, `Input`, `Select`, `Textarea`, `AutoLinkedNotes` (safe Drive URL auto-linker), `Field`, `FormSection`, `Tag`, `Skeleton`, `EmptyState`, `PageHeader`, `Card`.
-- `src/shared/ui/data-viz.tsx` — `KpiTile`, `TargetBar`, `BarChart`, `LineChart`.
-- `src/shared/ui/interactive.tsx` — `FilterBar`, `ConfirmDialog`, `Combobox`, `DatePicker`, `DataTable`, `AppShell`.
-
-### Module & Route Skeletons
-- `src/modules/{auth,contacts,pipelines,meetings,activities,targets,dashboard,admin}/` — Each initialized with stub `schema.ts`, `repository.ts`, `service.ts`, `actions.ts`, `queries.ts`, `components/index.ts`, and `index.ts`.
-- `src/app/` — Root layout (`Inter` + `globals.css`), `(auth)/login`, and `(app)/{dashboard,contacts,pipelines,meetings,activities,targets,admin}` shells.
+| Email | Role | PSE Access | Purpose |
+|---|---|---|---|
+| `admin@pse.org` | `admin` | `true` | Full read/write + `/admin` user & config management |
+| `safina@pse.org` | `target_manager` | `true` | Full PSE read + own writes + Targets wizard & lock |
+| `rahim@pse.org` | `member` | `true` | Full PSE read + own writes |
+| `karim@pse.org` | `member` | `true` | Full PSE read + own writes |
+| `nadia@pse.org` | `member` | `true` | Full PSE read + own writes |
+| `external@otherdept.org` | `member` | `false` | Non-PSE user (redirected to `/no-access`; RLS returns 0 rows) |
 
 ---
 
-## 4. Verification Commands
+## 4. What Exists in the Codebase (P0, P1 & P2)
+
+### SQL Migrations & Database Scripts
+- `supabase/migrations/001_enums_and_config.sql` — 11 enums, `teams`, `profiles`, `settings`, `currencies`, `fx_rates`, `pipeline_stages`, `contribution_categories`, `verticals`, `category_vertical_map`.
+- `supabase/migrations/002_contacts.sql` — `contacts`, `contact_channels` (`UNIQUE(kind, value_normalized)`), and deferred constraint triggers (`contact_min_channel_on_contacts`, `contact_min_channel_on_channels`).
+- `supabase/migrations/003_pipelines.sql` — `pipelines` (`expected_amount > 0`, in-kind valuation check, POC check), `pipeline_stage_history`, `pipeline_receipts`, stage history & `lost_reason` / `won_at` triggers.
+- `supabase/migrations/004_meetings_activities.sql` — `meetings` (`contact_id IS NOT NULL OR pipeline_id IS NOT NULL`), `activities` (11 types, 3 classes).
+- `supabase/migrations/005_targets.sql` — `target_plans`, `target_quarters`, `target_lines`, immutability lock triggers (`fn_lock_guard_*`), and `publish_target_plan(uuid)`.
+- `supabase/migrations/006_audit_rls.sql` — `audit_log`, `current_app_user_id()`, `is_pse_member()`, `has_role()`, audit triggers, and RLS policies on all 19 tables.
+- `supabase/seed.sql` — Reference data (stages, categories, verticals, mappings, currencies, FX rates, settings).
+- `scripts/db-push.mjs` (`npm run db:push`) — Pushes migrations `001`–`006` and `seed.sql` to `DATABASE_URL`.
+- `scripts/seed-demo.mjs` (`npm run db:seed`) — Seeds the 6 demo accounts and initial demo contacts, pipelines, receipts, meeting, activity, and locked 2026 target plan.
+- `scripts/db-tests.mjs` (`npm run db:test`) — Verifies all 10 database & RLS invariants against the live database.
+
+### Auth Module & Route Guard (`src/modules/auth/` & `src/proxy.ts`)
+- `src/proxy.ts` — Next.js 16 proxy (middleware) protecting `/dashboard`, `/contacts`, `/pipelines`, `/meetings`, `/activities`, `/targets`, `/admin` and redirecting unauthenticated visitors to `/login`.
+- `src/modules/auth/{schema,repository,service,actions,queries,index}.ts` — `signInAction`, `signOutAction`, `createUserAction`, `updateUserRoleAction`, `getAuthenticatedUser`, `getActivePseTeamMembers`, `getAdminPageData`.
+- `src/modules/auth/components/{login-form,admin-users-panel}.tsx` — `<LoginForm />` (with 1-click demo credential autofill) and `<AdminUsersPanel />` (team role/PSE access management + reference config tables).
+- `src/app/no-access/page.tsx` — Blocked screen for non-PSE users with sign-out button.
+
+---
+
+## 5. Verification Commands
 
 Run these before completing any phase:
 ```powershell
@@ -100,5 +84,6 @@ npm run lint
 npm run lint:design
 npm run typecheck
 npm test
+npm run db:test
 npm run build
 ```

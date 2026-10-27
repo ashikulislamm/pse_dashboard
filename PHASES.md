@@ -42,10 +42,10 @@
 **Never built (excluded by requirements):** Gmail sync, uploads, external autofill, Events module.
 
 ### Shortcuts that save hours (and are acceptable)
-1. **One Supabase project** used by local dev, previews and production. (Trade-off recorded in README; two projects is the post-handover step.)
-2. **Use the Supabase hosted SQL migrations via CLI `db push`**, not local Docker.
-3. **shadcn/ui components** for every form, table, dialog; no custom design system.
-4. **Dev/test auth by email+password**; no OAuth.
+1. **One Supabase Cloud Postgres project connected via Session Pooler URI (`DATABASE_URL`, port `5432`)** using `pg` (`node-postgres`) and Typed Parameterized SQL in `repository.ts` (no separate ORM).
+2. **Push SQL migrations directly via `DATABASE_URL`** (no local Docker or extra Supabase API keys needed).
+3. **Package manager:** **`npm`** (`package-lock.json`, `npm ci`) used across all commands and CI.
+4. **Auth by email+password stored in Postgres (`scrypt`) + standard HS256 JWT cookie (`pse_session`)**; user-scoped transactions set `request.jwt.claim.sub` / `app.current_user_id` so Postgres RLS works directly over `DATABASE_URL`.
 5. **Config tables are seeded**; edited through Supabase SQL editor.
 6. Deploy to Vercel **in Phase 1** and keep it green, so Day 3 has no first-deploy surprise.
 
@@ -87,9 +87,9 @@ No more clarification cycles; there is no time to wait. Record these as **assump
 5. `git init`; `.gitignore` (`.env*`, `.next`); create GitHub repo `pse-dashboard`; first commit; push `main`. Branch `develop` for work; merge to `main` at each gate (Vercel deploys `main`).
 6. **Supabase**: create one project. `pnpm supabase init`, `pnpm supabase link --project-ref <ref>`. Keys into `.env.local`:
    ```
-   NEXT_PUBLIC_SUPABASE_URL=
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=
-   SUPABASE_SERVICE_ROLE_KEY=      # server only, NEVER NEXT_PUBLIC
+   DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+   AUTH_SECRET=pse-dashboard-dev-secret-change-in-production
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
    Commit `.env.example` with empty values.
 7. **Vercel**: import the GitHub repo, set the same three env vars (Production + Preview), deploy. The service-role key must **not** be exposed to the browser bundle.

@@ -31,7 +31,7 @@ A simplified, Odoo-like CRM for the PSE team to manage donors and sponsors, trac
 ```mermaid
 flowchart LR
   U[PSE team member / manager / admin] -->|HTTPS| V[Vercel: Next.js app]
-  V -->|SQL over PostgREST / supabase-js| S[(Supabase: Postgres + Auth)]
+  V -->|Typed SQL over Session Pooler URI (pg)| S[(Supabase Cloud: PostgreSQL + RLS)]
   V -.->|manual: Drive URLs pasted as text| G[Google Drive]
   O[Odoo export CSV] -->|upload in memory| V
   GH[GitHub] -->|push / PR| V
@@ -69,10 +69,10 @@ flowchart TB
 
 | Unit | Runtime | Responsibility |
 |---|---|---|
-| Next.js app | Vercel serverless/edge (middleware at edge) | UI, orchestration, validation, cache |
-| Supabase Postgres | Managed | Source of truth, constraints, RLS, aggregation functions |
-| Supabase Auth | Managed | Identity, sessions (JWT in HTTP-only cookies) |
-| GitHub Actions | CI | Typecheck, lint, tests, SQL tests, migrations |
+| Next.js app | Vercel serverless/edge (middleware at edge) | UI, orchestration, HS256 JWT auth, validation, cache |
+| Supabase Postgres | Managed (Session Pooler URI `DATABASE_URL` via `pg`, no ORM) | Source of truth, constraints, RLS, aggregation functions |
+| Auth & Session layer | Next.js + Postgres `profiles` (`scrypt` + HS256 JWT in HTTP-only cookies) | Identity, role verification, JWT `sub` claim passed to Postgres RLS |
+| GitHub Actions | CI (`npm`) | Typecheck, lint, design check, unit tests, SQL tests, migrations |
 
 Environments: `local` (Supabase CLI) → `preview` (per PR, dev Supabase) → `production` (main, prod Supabase). Secrets are separate per environment.
 
@@ -162,7 +162,7 @@ Chain: **Contact → Pipeline → Meeting → Activity.** Meetings link to a con
 ### 7.2 Tables
 
 **Reference / config**
-- `profiles(id → auth.users, full_name, role[admin|target_manager|member], team_id, is_active)`
+- `profiles(id, email, password_hash, full_name, role[admin|target_manager|member], team_id, is_pse, is_active)`
 - `teams`, `settings(base_currency, fiscal_year_start_month, …)`
 - `currencies`, `fx_rates(currency, rate_to_base, effective_from)`
 - `pipeline_stages(id, name, kind[open|won|lost|junk], position)` — reports group by **kind**
@@ -246,8 +246,8 @@ Two lenses: **Monetary** (pipeline, won, receipts, attainment, vertical) and **N
 5. **Audit log** of changes.
 
 ### 9.3 Secrets and data handling
-- Service-role key exists only in server env (never `NEXT_PUBLIC_*`), used only inside cached read functions after authorization has passed.
-- zod validation on every action; parameterised queries via Supabase client.
+- `DATABASE_URL` (Supabase Cloud Session Pooler URI, port `5432`) and `AUTH_SECRET` exist only in server env (never `NEXT_PUBLIC_*`); all database access runs on the server via `pg` (`node-postgres`).
+- zod validation on every action; parameterised SQL queries (`$1, $2, ...`) via `pg` in `repository.ts` (no separate ORM layer).
 - Drive URLs rendered as links with `rel="noopener noreferrer"`; notes are rendered as escaped text.
 - Login rate limiting; no PII in logs; HTTPS only.
 - Uploaded CSVs are parsed in memory and not stored.
@@ -404,6 +404,9 @@ Branching: `main` (prod) ← `develop` ← feature branches; Conventional Commit
 | 007 | Stages, categories, verticals are config | Stages not finalized |
 | 008 | Invariants in DB triggers/constraints | Money rules must not depend on UI |
 | 009 | Drive URLs in notes, no storage | Storage concerns raised in meeting |
+| 010 | Direct PostgreSQL Session Pooler URI (`DATABASE_URL` + `pg`) & Typed SQL (no ORM) | Works across IPv4/Vercel without extra Supabase API keys; directly supports deferred constraints, custom triggers, RLS, and SQL functions |
+| 011 | Self-contained HS256 JWT Cookie + Postgres `scrypt` Auth | Zero external auth service dependency; passes `sub` claim into Postgres transactions for RLS |
+| 012 | `npm` as package manager | Standardized on `npm` (`package-lock.json`, `npm ci`) for local dev and GitHub Actions |
 
 ## 17. Extension points
 

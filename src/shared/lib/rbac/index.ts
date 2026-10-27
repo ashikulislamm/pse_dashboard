@@ -33,7 +33,7 @@ export async function requireUser(): Promise<AuthenticatedProfile> {
   }
 
   const { rows } = await queryDb<Database['public']['Tables']['profiles']['Row']>(
-    `SELECT id, full_name, role, team_id, is_pse, is_active
+    `SELECT id, email, full_name, role, team_id, is_pse, is_active
      FROM profiles
      WHERE id = $1
      LIMIT 1`,

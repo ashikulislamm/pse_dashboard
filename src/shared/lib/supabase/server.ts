@@ -4,9 +4,10 @@ import { getDbPool, queryDb } from './admin';
 
 /**
  * Runs a callback inside a PostgreSQL transaction scoped to `userId`.
- * Sets `request.jwt.claim.sub` and `app.current_user_id` locally for the transaction
- * so PostgreSQL Row-Level Security (RLS) policies (`auth.uid()`) and audit triggers
- * identify the authenticated PSE user directly over the `DATABASE_URL` URI connection.
+ * Switches the transaction role to `authenticated` (`SET LOCAL ROLE authenticated`)
+ * and sets `request.jwt.claim.sub` and `app.current_user_id` locally for the transaction
+ * so PostgreSQL Row-Level Security (RLS) policies (`is_pse_member()`, `has_role()`) and
+ * audit triggers are strictly enforced by Postgres over the `DATABASE_URL` connection.
  */
 export async function withUserTransaction<TResult>(
   userId: string,
@@ -17,6 +18,7 @@ export async function withUserTransaction<TResult>(
 
   try {
     await client.query('BEGIN');
+    await client.query('SET LOCAL ROLE authenticated');
     await client.query(
       `SELECT set_config('request.jwt.claim.sub', $1, true),
               set_config('request.jwt.claims', json_build_object('sub', $1, 'role', 'authenticated')::text, true),

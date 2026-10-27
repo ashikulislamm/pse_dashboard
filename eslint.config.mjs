@@ -15,7 +15,7 @@ const eslintConfig = defineConfig([
       'boundaries/elements': [
         {
           type: 'app',
-          pattern: 'src/app/**/*',
+          pattern: ['src/app/**/*', 'src/proxy.ts'],
         },
         {
           type: 'module',

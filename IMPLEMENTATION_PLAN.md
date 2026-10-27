@@ -84,9 +84,9 @@ These are the places where a naive build goes wrong. Each has a **default I will
 | Concern | Choice | Reason |
 |---|---|---|
 | Framework | **Next.js (latest stable, App Router) + React + TypeScript strict** | Required; server components + server actions fit a CRUD/dashboard app |
-| DB | **Supabase Postgres** (not MySQL) | Required options; gives Auth + RLS + SQL views/functions for aggregation, one vendor, Vercel integration |
-| Auth | Supabase Auth (email+password; Google OAuth optional) | Team-wide access control, RLS uses `auth.uid()` |
-| Authorization | **RLS in DB + role checks in server layer** (defence in depth) | PSE-only visibility enforced at the data layer |
+| DB | **Supabase Cloud Postgres via Session Pooler URI (`DATABASE_URL` + `pg`, Typed SQL, no ORM)** | IPv4-compatible across Windows/CI/Vercel; directly supports deferred constraints, custom triggers, RLS, and SQL functions without ORM overhead |
+| Auth | **Postgres `profiles` (`scrypt`) + Standard HS256 JWT in HTTP-only cookies (`AUTH_SECRET`)** | Self-contained over `DATABASE_URL` without requiring external Supabase API keys; passes JWT `sub` claim into Postgres transactions |
+| Authorization | **RLS in DB (`withUserTransaction`) + role checks in server layer** (defence in depth) | PSE-only visibility enforced at the data layer |
 | UI | Tailwind + shadcn/ui, TanStack Table, Recharts, react-hook-form + zod | Fast, Odoo-like list/kanban/form views |
 | Pipeline board | dnd-kit kanban | Odoo-style stage drag |
 | Caching | See B4 | Required deliverable |
@@ -172,7 +172,7 @@ Estimate assumes 1 developer, ~15 working days. If the assessment deadline is sh
 - Deliver: **Architecture PDF** (sections: overview, requirements trace, tech stack, modules, ERD, security, caching, deployment, scalability, risks). **Exit:** PDF reviewed.
 
 ### Phase 2 — Project initialization & infrastructure (Day 2)
-1. `npx create-next-app@latest` (TS, Tailwind, App Router, ESLint, `src/`), pnpm.
+1. `npx create-next-app@latest` (TS, Tailwind, App Router, ESLint, `src/`), **npm** (`package-lock.json`).
 2. Install: shadcn/ui, supabase-js + `@supabase/ssr`, zod, react-hook-form, TanStack Query/Table, recharts, dnd-kit, date-fns, libphonenumber-js, vitest, playwright, eslint-plugin-boundaries, prettier, husky + lint-staged.
 3. `git init`; GitHub repo `pse-dashboard`; branch model: `main` (prod) ← `develop` ← feature branches; Conventional Commits; PR template; branch protection.
 4. Supabase project(s): `dev` and `prod`; `supabase init`, link, `.env.example`.

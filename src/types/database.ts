@@ -51,27 +51,39 @@ export type Database = {
       profiles: {
         Row: {
           id: string;
+          email: string;
+          password_hash?: string;
           full_name: string;
           role: AppRole;
           team_id: string | null;
           is_pse: boolean;
           is_active: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
         Insert: {
-          id: string;
+          id?: string;
+          email: string;
+          password_hash?: string;
           full_name: string;
           role?: AppRole;
           team_id?: string | null;
           is_pse?: boolean;
           is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
+          email?: string;
+          password_hash?: string;
           full_name?: string;
           role?: AppRole;
           team_id?: string | null;
           is_pse?: boolean;
           is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
