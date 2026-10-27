@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, and Phase 4)
+Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, and Phase 5)
 
 ---
 
@@ -30,8 +30,8 @@ Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, a
 | **P2** | Database migrations (`001`–`006`), seed scripts, Auth, RBAC, AppShell | **Completed** | All 6 SQL migrations + reference seed + demo dataset pushed to Supabase Cloud DB; 10 DB & RLS invariant tests passing; `/login`, `/no-access`, `src/proxy.ts`, role-aware `AppShell`, and `/admin` user & config screen implemented. |
 | **P3** | Contacts module & `ContactPicker` | **Completed** | Individual/Company conditional form, channel repeater (`>= 1` email/phone), E.164/email deduplication with "Open contact" / "Use existing" alert, inline company creation, reusable `<ContactPicker />` with inline create, `/contacts` list + filters, and `/contacts/[id]` detail page with related records tabs. |
 | **P4** | Pipelines & Receipts module | **Completed** | Money-only (`expected_amount > 0`) with `/activities` redirect hint, Cash vs. In-kind mandatory valuation note, Company (with POC & secondary contact via `<ContactPicker />`) vs. Individual, live FX conversion to BDT (`amount_base`), List & stage-grouped Board views with `<StageQuickSelect />`, stage history timeline, Won/Lost/Junk confirmation & reason dialogs, `pipeline_receipts` recording (`Won ৳ X · Received ৳ Y · Unrealized ৳ (X − Y)` + over-receipt flag), and cache tag invalidation. |
-| **P5** | Meetings & Activities modules | **Pending (Next)** | Meetings (`contact_id` OR `pipeline_id`), Activities (11 types, 3 classes). |
-| **P6** | Targets wizard & lock | Pending | Annual → Q1–Q4 → Members → Verticals (%), largest-remainder rounding, DB lock trigger. |
+| **P5** | Meetings & Activities modules | **Completed** | Meetings (`contact_id` OR `pipeline_id` required, derived read-only organization/designation from contact, Scheduled/Done tabs, 1-click `"Add follow-up"` activity shortcut); Activities (11 types, 3 non-monetary classes with `defaultActivityClassForType`, Excel tracker table view, `"My activities"` preset toggle, inline status updates, and pre-linked shortcuts from Contacts, Pipelines, and Meetings). |
+| **P6** | Targets wizard & lock | **Pending (Next)** | Annual → Q1–Q4 → Members → Verticals (%), largest-remainder rounding, DB lock trigger. |
 | **P7** | Two-lens Dashboard & SQL read functions (`007`) | Pending | Monetary & Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual views. |
 | **P8** | Tagged server caching & performance benchmark | Pending | `cached()` + `invalidateTags()`, benchmark on seeded dataset (`docs/CACHING.md`). |
 | **P9** | Testing & hardening | Pending | Unit, DB invariant tests, Playwright E2E happy path, security & a11y checks. |
@@ -55,7 +55,7 @@ All demo accounts use password: `Password123!`
 
 ---
 
-## 4. What Exists in the Codebase (P0, P1, P2, P3 & P4)
+## 4. What Exists in the Codebase (P0, P1, P2, P3, P4 & P5)
 
 ### SQL Migrations & Database Scripts
 - `supabase/migrations/001_enums_and_config.sql` — 11 enums, `teams`, `profiles`, `settings`, `currencies`, `fx_rates`, `pipeline_stages`, `contribution_categories`, `verticals`, `category_vertical_map`.
@@ -96,6 +96,24 @@ All demo accounts use password: `Password123!`
   - `stage-transition-dialog.tsx` — `<StageQuickSelect />` with confirmation dialog for Won (`won_at` + receipt unlock), required `lost_reason` modal for Lost, and optional reason modal for Junk/Abandoned.
   - `record-receipt-dialog.tsx` — Realized receipt dialog (`pipeline_receipts`) with live BDT FX conversion and over-receipt notice.
   - `pipelines-view.tsx` & `pipeline-detail-view.tsx` — `/pipelines` (KPI summary strip, filters, List table view, and stage-grouped Board view) and `/pipelines/[id]` (`Won ৳ X · Received ৳ Y · Unrealized ৳ (X − Y)` banner, `<TargetBar />`, stage history timeline, receipts table, and linked meetings/activities tabs).
+
+### Meetings Module (`src/modules/meetings/` & `/meetings`)
+- `src/modules/meetings/{schema,service,repository,actions,queries,index}.ts`
+  - `meetingFormSchema`, `meetingFilterSchema`, `prepareMeetingPayload`, `deriveMeetingContactInfo`, `canEditMeeting` (tested in `src/modules/meetings/meetings.test.ts`).
+  - `listMeetings` (SQL join deriving `effective_contact_id`, `derived_organization_name`, and `derived_designation` from the linked contact or fallback pipeline contact), `listMeetingOwners`, `createMeetingRecord`, `updateMeetingRecord`, `updateMeetingStatusRecord`, `listMeetingsLite`.
+  - `createMeetingAction`, `updateMeetingAction`, `updateMeetingStatusAction`.
+- `src/modules/meetings/components/`
+  - `meeting-form.tsx` — `<ContactPicker />` + pipeline select with live read-only derived Contact / Organization / Designation box.
+  - `meetings-view.tsx` — `/meetings` with KPI summary strip, `All / Upcoming (Scheduled) / Done` tabs, filters, quick `"Mark done"`, and 1-click `"Add follow-up"` linking to `/activities?new=1&meetingId=...&contactId=...&pipelineId=...`.
+
+### Activities Module (`src/modules/activities/` & `/activities`)
+- `src/modules/activities/{schema,service,repository,actions,queries,index}.ts`
+  - `activityFormSchema`, `activityFilterSchema`, `defaultActivityClassForType` (`servicing → stewardship`, `prospect_engagement → prospect_engagement`, others `→ independent`), `prepareActivityPayload`, `canEditActivity` (tested in `src/modules/activities/activities.test.ts`).
+  - `listActivities`, `listActivityOwners`, `createActivityRecord`, `updateActivityRecord`, `updateActivityStatusRecord`.
+  - `createActivityAction`, `updateActivityAction`, `updateActivityStatusAction`.
+- `src/modules/activities/components/`
+  - `activity-form.tsx` — 11 activity types, 3 non-monetary reporting classes (auto-defaulted from type and user-editable), optional contact/pipeline/meeting links, free-text `related_org_name`, `remaining_work`, `occurred_at`/`due_at`, and Google Drive notes.
+  - `activities-view.tsx` — `/activities` reproducing the Excel tracker table (`Date`, `Activity & notes`, `Type`, `Class`, `Related`, `Owner`, `Status`, `Remaining work`), `"All team"` vs. `"My activities"` preset toggle, and inline status selector.
 
 ---
 
