@@ -56,7 +56,7 @@ export function Money({
   ...props
 }: MoneyProps) {
   return (
-    <span className={cn('tabular-nums', className)} {...props}>
+    <span className={cn('tabular-nums whitespace-nowrap', className)} {...props}>
       {formatMoney(amount, currency, baseAmount)}
     </span>
   );

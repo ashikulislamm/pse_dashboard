@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  DUMMY_PASSWORD_HASH,
   hashPassword,
   signSessionToken,
   verifyPassword,
@@ -47,10 +48,28 @@ describe('JWT session token signing and verification', () => {
   });
 });
 
+describe('AUTH_SECRET in production', () => {
+  it('refuses to sign tokens without a strong secret', () => {
+    const user = { userId: 'u', email: 'a@b.c', role: 'member' as const };
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('AUTH_SECRET', '');
+    expect(() => signSessionToken(user)).toThrow(/AUTH_SECRET/);
+    vi.stubEnv('AUTH_SECRET', 'too-short');
+    expect(() => signSessionToken(user)).toThrow(/AUTH_SECRET/);
+    vi.stubEnv('AUTH_SECRET', 'x'.repeat(40));
+    expect(() => signSessionToken(user)).not.toThrow();
+    vi.unstubAllEnvs();
+  });
+});
+
 describe('password hashing', () => {
-  it('hashes and verifies passwords accurately', () => {
-    const hash = hashPassword('StrongPass!2026');
-    expect(verifyPassword('StrongPass!2026', hash)).toBe(true);
-    expect(verifyPassword('WrongPass', hash)).toBe(false);
+  it('hashes and verifies passwords accurately', async () => {
+    const hash = await hashPassword('StrongPass!2026');
+    expect(await verifyPassword('StrongPass!2026', hash)).toBe(true);
+    expect(await verifyPassword('WrongPass', hash)).toBe(false);
+  });
+
+  it('never matches the dummy hash used for unknown emails', async () => {
+    expect(await verifyPassword('anything', DUMMY_PASSWORD_HASH)).toBe(false);
   });
 });

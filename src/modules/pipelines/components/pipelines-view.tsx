@@ -19,6 +19,7 @@ import {
   PageHeader,
   Select,
   Tag,
+  TableSkeleton,
 } from '@/shared/ui';
 import type { AppRole } from '@/types/database';
 import type { PipelineListItem, PipelineReferenceData } from '../repository';
@@ -47,6 +48,7 @@ export function PipelinesView({
   preselectedContactId,
 }: PipelinesViewProps) {
   const router = useRouter();
+  const [isPending, startTransition] = React.useTransition();
   const [viewMode, setViewMode] = React.useState<'list' | 'board'>(
     initialFilters.view ?? 'list',
   );
@@ -111,7 +113,7 @@ export function PipelinesView({
     if (nextView === 'board') params.set('view', 'board');
 
     const qs = params.toString();
-    router.push(qs ? `/pipelines?${qs}` : '/pipelines');
+    startTransition(() => router.push(qs ? `/pipelines?${qs}` : '/pipelines'));
   };
 
   const resetFilters = () => {
@@ -124,7 +126,7 @@ export function PipelinesView({
     setContributionType('');
     setFromDate('');
     setToDate('');
-    router.push(viewMode === 'board' ? '/pipelines?view=board' : '/pipelines');
+    startTransition(() => router.push(viewMode === 'board' ? '/pipelines?view=board' : '/pipelines'));
   };
 
   const hasActiveFilters = Boolean(
@@ -571,6 +573,7 @@ export function PipelinesView({
         <DataTable
           columns={columns}
           rows={pipelines}
+          loading={isPending}
           getRowKey={(row) => row.id}
           emptyMessage={
             hasActiveFilters
@@ -582,6 +585,8 @@ export function PipelinesView({
             hasActiveFilters ? resetFilters : () => setShowCreateModal(true)
           }
         />
+      ) : isPending ? (
+        <TableSkeleton rows={6} columns={6} />
       ) : pipelines.length === 0 ? (
         <EmptyState
           message={

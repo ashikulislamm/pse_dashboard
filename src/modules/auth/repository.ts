@@ -50,6 +50,31 @@ export async function findProfileWithPasswordByEmail(
   return rows[0] ?? null;
 }
 
+/** Failed attempts for this email within the last `windowMinutes` minutes. */
+export async function countRecentFailedLogins(
+  email: string,
+  windowMinutes: number,
+): Promise<number> {
+  const { rows } = await queryDb<{ n: string }>(
+    `SELECT count(*)::text AS n
+     FROM login_attempts
+     WHERE email = lower($1)
+       AND attempted_at > now() - make_interval(mins => $2::int)`,
+    [email, windowMinutes],
+  );
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function recordFailedLogin(email: string): Promise<void> {
+  await queryDb(`INSERT INTO login_attempts (email) VALUES (lower($1))`, [email]);
+  // Keep the table small: drop attempts older than a day.
+  await queryDb(`DELETE FROM login_attempts WHERE attempted_at < now() - interval '1 day'`);
+}
+
+export async function clearFailedLogins(email: string): Promise<void> {
+  await queryDb(`DELETE FROM login_attempts WHERE email = lower($1)`, [email]);
+}
+
 export async function listAllProfiles(): Promise<PublicProfileRecord[]> {
   const { rows } = await queryDb<PublicProfileRecord>(
     `SELECT id, email, full_name, role, team_id, is_pse, is_active, created_at

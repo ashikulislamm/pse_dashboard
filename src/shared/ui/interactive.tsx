@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   FolderKanban,
+  Menu,
   Moon,
   Search,
   Settings,
@@ -21,6 +22,7 @@ import {
 import { cn } from '@/shared/lib/utils';
 import type { AppRole } from '@/types/database';
 import { Button, EmptyState, Input } from './primitives';
+import { LoadingRegion as LoadingRegionInline, TableSkeleton } from './skeletons';
 
 export interface FilterBarProps {
   searchPlaceholder?: string;
@@ -301,6 +303,8 @@ export interface DataTableProps<TRow> {
   emptyActionLabel?: string;
   onEmptyAction?: () => void;
   compact?: boolean;
+  /** Shows a skeleton table while new data is loading (e.g. after a filter change). */
+  loading?: boolean;
 }
 
 export function DataTable<TRow>({
@@ -312,6 +316,7 @@ export function DataTable<TRow>({
   emptyActionLabel,
   onEmptyAction,
   compact = false,
+  loading = false,
 }: DataTableProps<TRow>) {
   const [sortKey, setSortKey] = React.useState<string | null>(null);
   const [sortAsc, setSortAsc] = React.useState(true);
@@ -337,6 +342,17 @@ export function DataTable<TRow>({
   const startIdx = (safePage - 1) * pageSize;
   const pagedRows = sortedRows.slice(startIdx, startIdx + pageSize);
 
+  if (loading) {
+    return (
+      <LoadingRegionInline>
+        <TableSkeleton
+          rows={Math.min(Math.max(rows.length, 5), 10)}
+          columns={columns.length}
+        />
+      </LoadingRegionInline>
+    );
+  }
+
   if (rows.length === 0) {
     return (
       <EmptyState
@@ -360,7 +376,7 @@ export function DataTable<TRow>({
                     key={col.key}
                     scope="col"
                     className={cn(
-                      'px-3 py-2.5 font-medium select-none',
+                      'px-3 py-2.5 font-medium whitespace-nowrap select-none',
                       col.align === 'right' ? 'text-right' : 'text-left',
                     )}
                   >
@@ -474,28 +490,85 @@ export interface AppShellProps {
   children: React.ReactNode;
 }
 
+function subscribeToThemeClass(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+  return () => observer.disconnect();
+}
+
+function NavList({
+  items,
+  pathname,
+  onNavigate,
+}: {
+  items: NavItem[];
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 p-2">
+      {items.map((item) => {
+        const Icon = item.icon;
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-100',
+              active ? 'bg-primary-subtle text-primary' : 'text-foreground hover:bg-surface-2',
+            )}
+          >
+            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 /**
  * App shell (DESIGN.md §5 App shell):
- * Left sidebar 232px (`--surface`, 1px right border), top bar 56px (breadcrumb left, user + theme toggle right).
+ * Left sidebar 232px (>= 1024px) or a slide-in drawer below that, top bar 56px
+ * (menu + breadcrumb left, theme toggle and user right).
  */
 export function AppShell({ user, onSignOut, children }: AppShellProps) {
   const pathname = usePathname() || '/dashboard';
-  const [dark, setDark] = React.useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    const stored = window.localStorage.getItem('pse-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return stored ? stored === 'dark' : prefersDark;
-  });
+  const [navOpen, setNavOpen] = React.useState(false);
 
+  // The theme class is applied before first paint by a script in the root layout.
+  // Subscribing to it keeps this component in sync without reading browser state during render.
+  const dark = React.useSyncExternalStore(
+    subscribeToThemeClass,
+    () => document.documentElement.classList.contains('dark'),
+    () => false,
+  );
+
+  // Close the drawer on Escape (nav links and the backdrop close it on click).
   React.useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    document.documentElement.classList.toggle('light', !dark);
-  }, [dark]);
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNavOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navOpen]);
 
   const toggleTheme = () => {
     const nextDark = !dark;
-    setDark(nextDark);
-    window.localStorage.setItem('pse-theme', nextDark ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark', nextDark);
+    document.documentElement.classList.toggle('light', !nextDark);
+    try {
+      window.localStorage.setItem('pse-theme', nextDark ? 'dark' : 'light');
+    } catch {
+      /* storage unavailable: theme still applies for this session */
+    }
   };
 
   const visibleNavItems = NAV_ITEMS.filter(
@@ -513,35 +586,62 @@ export function AppShell({ user, onSignOut, children }: AppShellProps) {
             PSE CRM
           </Link>
         </div>
-        <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 p-2">
-          {visibleNavItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] leading-5 font-medium transition-colors duration-100',
-                  active
-                    ? 'bg-primary-subtle text-primary'
-                    : 'text-foreground hover:bg-surface-2',
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <NavList items={visibleNavItems} pathname={pathname} />
       </aside>
 
+      {navOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="absolute inset-0 bg-foreground/25"
+            onClick={() => setNavOpen(false)}
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-[232px] max-w-[85vw] flex-col border-r border-border bg-surface">
+            <div className="flex h-14 items-center justify-between border-b border-border px-4">
+              <Link
+                href="/dashboard"
+                onClick={() => setNavOpen(false)}
+                className="text-[14px] leading-5 font-semibold text-foreground"
+              >
+                PSE CRM
+              </Link>
+              <Button
+                variant="ghost"
+                size="compact"
+                aria-label="Close menu"
+                onClick={() => setNavOpen(false)}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+            <NavList
+              items={visibleNavItems}
+              pathname={pathname}
+              onNavigate={() => setNavOpen(false)}
+            />
+          </aside>
+        </div>
+      )}
+
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-border bg-background px-6">
-          <div className="text-[13px] leading-5 font-medium text-muted-foreground">
-            PSE / <span className="text-foreground">{currentSection}</span>
+        <header className="flex h-14 items-center justify-between gap-2 border-b border-border bg-background px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              variant="ghost"
+              size="compact"
+              className="lg:hidden"
+              aria-label="Open menu"
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen(true)}
+            >
+              <Menu className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <div className="truncate text-[13px] leading-5 font-medium text-muted-foreground">
+              PSE / <span className="text-foreground">{currentSection}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Button
               variant="ghost"
               size="compact"
@@ -553,12 +653,16 @@ export function AppShell({ user, onSignOut, children }: AppShellProps) {
               ) : (
                 <Moon className="h-4 w-4" aria-hidden="true" />
               )}
-              <span>{dark ? 'Light' : 'Dark'}</span>
+              <span className="hidden sm:inline">{dark ? 'Light' : 'Dark'}</span>
             </Button>
             {user && (
-              <div className="flex items-center gap-2 border-l border-border pl-3 text-[13px] leading-5">
-                <span className="font-medium text-foreground">{user.fullName}</span>
-                <span className="text-muted-foreground">({user.role})</span>
+              <div className="flex items-center gap-2 border-l border-border pl-2 text-[13px] leading-5 sm:pl-3">
+                <span className="hidden font-medium whitespace-nowrap text-foreground md:inline">
+                  {user.fullName}
+                </span>
+                <span className="hidden whitespace-nowrap text-muted-foreground md:inline">
+                  ({user.role})
+                </span>
                 {onSignOut && (
                   <Button variant="secondary" size="compact" onClick={onSignOut}>
                     Sign out
@@ -569,7 +673,7 @@ export function AppShell({ user, onSignOut, children }: AppShellProps) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1440px] flex-1 p-4 sm:p-6">{children}</main>
+        <main className="mx-auto w-full min-w-0 max-w-[1440px] flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

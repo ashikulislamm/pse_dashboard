@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, and Phase 5)
+Last updated: 2026-10-27 (after Phases 0-5 plus the security and infrastructure hardening pass below)
 
 ---
 
@@ -32,7 +32,7 @@ Last updated: 2026-10-27 (after completing Phase 0, Phase 1, Phase 2, Phase 3, P
 | **P4** | Pipelines & Receipts module | **Completed** | Money-only (`expected_amount > 0`) with `/activities` redirect hint, Cash vs. In-kind mandatory valuation note, Company (with POC & secondary contact via `<ContactPicker />`) vs. Individual, live FX conversion to BDT (`amount_base`), List & stage-grouped Board views with `<StageQuickSelect />`, stage history timeline, Won/Lost/Junk confirmation & reason dialogs, `pipeline_receipts` recording (`Won ৳ X · Received ৳ Y · Unrealized ৳ (X − Y)` + over-receipt flag), and cache tag invalidation. |
 | **P5** | Meetings & Activities modules | **Completed** | Meetings (`contact_id` OR `pipeline_id` required, derived read-only organization/designation from contact, Scheduled/Done tabs, 1-click `"Add follow-up"` activity shortcut); Activities (11 types, 3 non-monetary classes with `defaultActivityClassForType`, Excel tracker table view, `"My activities"` preset toggle, inline status updates, and pre-linked shortcuts from Contacts, Pipelines, and Meetings). |
 | **P6** | Targets wizard & lock | **Pending (Next)** | Annual → Q1–Q4 → Members → Verticals (%), largest-remainder rounding, DB lock trigger. |
-| **P7** | Two-lens Dashboard & SQL read functions (`007`) | Pending | Monetary & Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual views. |
+| **P7** | Two-lens Dashboard & SQL read functions (`008`) | Pending | Monetary & Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual views. |
 | **P8** | Tagged server caching & performance benchmark | Pending | `cached()` + `invalidateTags()`, benchmark on seeded dataset (`docs/CACHING.md`). |
 | **P9** | Testing & hardening | Pending | Unit, DB invariant tests, Playwright E2E happy path, security & a11y checks. |
 | **P10** | Deployment & documentation | Pending | Prod Supabase + Vercel deploy, `PSE_Architecture.pdf`, Google Drive pack, `README.md`. |
@@ -128,3 +128,35 @@ npm test
 npm run db:test
 npm run build
 ```
+
+---
+
+## 6. Hardening Pass (2026-10-27) — what changed after the P0–P5 review
+
+- **Connection pool:** `getDbPool()` now always caches the pool on `globalThis` (previously production created a new pool per query). Default `max` is 3 (`DATABASE_POOL_MAX` overrides). Optional `DATABASE_CA_CERT` enables full TLS verification.
+- **`AUTH_SECRET`:** no default in production. Sessions throw unless it is set to 32+ characters. `.env.example` is blank; local dev falls back to a dev-only secret. **Set a random `AUTH_SECRET` on Vercel.**
+- **Passwords:** `hashPassword` / `verifyPassword` are async (`crypto.scrypt`). Login verifies against `DUMMY_PASSWORD_HASH` for unknown emails (no timing leak).
+- **Brute-force protection:** `login_attempts` table (migration `007_security_hardening.sql`); 5 failed attempts per email in 15 minutes locks sign-in for that email until the window passes.
+- **Credential hash isolation:** migration `007` revokes table-level `SELECT` on `profiles` from `authenticated` and grants every column except `password_hash`. Login and session checks use the owner connection and are unaffected.
+- **Migration ledger:** `npm run db:push` records applied files in `schema_migrations` and applies each file once, in a transaction. The reference seed (idempotent) still runs every time. Next migration number: `008` (dashboard SQL functions).
+- **Lint boundaries now actually run:** elements use `mode: 'full'` and the `@/` alias is resolved. Cross-module deep imports (`@/modules/<name>/<file>`) are blocked; use `@/modules/<name>`.
+- **Cleanup:** removed duplicate `shared/lib/{money,phone,periods}.ts` re-export stubs (the `index.ts` folders remain); removed dev-text from the Dashboard empty state; README rewritten; stale pnpm / service-role / Supabase Auth wording fixed in `PHASES.md`, `ARCHITECURE.md`, `IMPLEMENTATION_PLAN.md`, `docs/ASSUMPTIONS.md`.
+- **Demo credentials are unchanged** and remain visible on `/login` (one-click fill) and in the README. Known trade-off: an attacker can lock a known email for 15 minutes by failing sign-in five times.
+- **Required after pulling:** run `npm run db:push` to apply migration `007`.
+
+## 7. Loading States & Toasts (2026-10-27)
+
+- **Skeleton system:** `src/shared/ui/skeletons.tsx` (`LoadingRegion`, `PageHeaderSkeleton`, `KpiRowSkeleton`, `FilterBarSkeleton`, `TableSkeleton`, `CardSkeleton`, `ListPageSkeleton`, `DetailPageSkeleton`, `DashboardSkeleton`, `FormPageSkeleton`). Static flat blocks (no pulse/shimmer, per DESIGN.md); wrapped in `role="status"` with an sr-only "Loading".
+- **Route loading screens:** `loading.tsx` for dashboard, contacts, contacts/[id], pipelines, pipelines/[id], meetings, activities, targets, admin, plus a generic `(app)/loading.tsx`. Sidebar and top bar stay visible while the page area shows its skeleton.
+- **Filter changes** on Pipelines, Meetings, Activities now run in `useTransition`; `DataTable` has a `loading` prop that shows `TableSkeleton` while the server refetches (pipelines board does too). Contacts filters are client-side and need no loader.
+- **New screens must ship with a matching `loading.tsx`** (P6 Targets and P7 Dashboard already have one to refine when their real layouts exist).
+- **Toasts:** `<Toaster position="top-right">` with a 64px top offset so toasts sit below the top bar.
+
+## 8. UI Break Fixes (2026-10-27)
+
+- **Buttons never wrap:** `Button` now has `whitespace-nowrap shrink-0` and icons `shrink-0` (fixes "Add follow-up (1)" wrapping on Meetings). Same for `Tag`, `Money`, `DateText`, and table headers.
+- **`ButtonLink`** (in `shared/ui/primitives.tsx`) replaces `<Link><Button/></Link>` (invalid nested interactive elements). Use it for any navigation that looks like a button.
+- **Responsive shell:** below 1024px the sidebar becomes a slide-in drawer (hamburger in the top bar, closes on route change / Escape / backdrop). On small screens the top bar hides the user name/role and theme label.
+- **Theme flash / hydration:** a small pre-paint script in `app/layout.tsx` applies the saved theme; `AppShell` reads the class after mount instead of reading localStorage during render.
+- **KPI tiles** use a smaller value size on narrow screens and wrap long amounts.
+- Contact detail action buttons are now short ("New pipeline", "Schedule meeting", "Log activity") instead of embedding the contact name.

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
@@ -44,7 +45,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={type}
         disabled={disabled || loading}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-100 outline-none focus:outline-none focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+          'inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors duration-100 [&_svg]:shrink-0 outline-none focus:outline-none focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
           BUTTON_VARIANTS[variant],
           BUTTON_SIZES[size],
           className,
@@ -261,7 +262,7 @@ export function Tag({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border border-border-strong px-2 py-0.5 text-[12px] leading-4 font-normal',
+        'inline-flex items-center rounded-sm border border-border-strong px-2 py-0.5 text-[12px] leading-4 font-normal whitespace-nowrap',
         toneClass,
         className,
       )}
@@ -364,5 +365,42 @@ export function Card({
       )}
       {children}
     </div>
+  );
+}
+
+export interface ButtonLinkProps {
+  href: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+  children: React.ReactNode;
+  'aria-label'?: string;
+}
+
+/**
+ * Navigation link styled as a button. Use instead of nesting a `<Button>` inside a `<Link>`
+ * (a button inside an anchor is invalid HTML and breaks keyboard and screen-reader behavior).
+ */
+export function ButtonLink({
+  href,
+  variant = 'secondary',
+  size = 'compact',
+  className,
+  children,
+  ...rest
+}: ButtonLinkProps) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors duration-100 [&_svg]:shrink-0 outline-none focus:outline-none focus-visible:outline-none',
+        BUTTON_VARIANTS[variant],
+        BUTTON_SIZES[size],
+        className,
+      )}
+      {...rest}
+    >
+      {children}
+    </Link>
   );
 }

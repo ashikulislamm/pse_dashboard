@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { CACHE_TAGS, invalidateTags } from '@/shared/lib/cache';
 import {
+  DUMMY_PASSWORD_HASH,
   hashPassword,
   requireRole,
   SESSION_COOKIE_NAME,
@@ -12,8 +13,11 @@ import {
   verifyPassword,
 } from '@/shared/lib/rbac';
 import {
+  clearFailedLogins,
+  countRecentFailedLogins,
   findProfileWithPasswordByEmail,
   insertProfileAsAdmin,
+  recordFailedLogin,
   updateProfileAsAdmin,
 } from './repository';
 import {
@@ -24,6 +28,9 @@ import {
   type UpdateUserRoleInput,
 } from './schema';
 import { validateSelfUpdateGuard } from './service';
+
+const MAX_FAILED_LOGINS = 5;
+const LOGIN_LOCK_WINDOW_MINUTES = 15;
 
 export interface AuthActionState {
   error?: string;
@@ -47,12 +54,31 @@ export async function signInAction(
     };
   }
 
-  const profile = await findProfileWithPasswordByEmail(parsed.data.email);
-  if (!profile || !verifyPassword(parsed.data.password, profile.password_hash)) {
+  const email = parsed.data.email;
+
+  const recentFailures = await countRecentFailedLogins(email, LOGIN_LOCK_WINDOW_MINUTES);
+  if (recentFailures >= MAX_FAILED_LOGINS) {
+    return {
+      error: `Too many failed attempts. Try again in ${LOGIN_LOCK_WINDOW_MINUTES} minutes.`,
+    };
+  }
+
+  const profile = await findProfileWithPasswordByEmail(email);
+  // Always run a password verification (against a dummy hash when the email is unknown)
+  // so response time does not reveal whether an account exists.
+  const passwordOk = await verifyPassword(
+    parsed.data.password,
+    profile?.password_hash ?? DUMMY_PASSWORD_HASH,
+  );
+
+  if (!profile || !passwordOk) {
+    await recordFailedLogin(email);
     return {
       error: 'Invalid email or password.',
     };
   }
+
+  await clearFailedLogins(email);
 
   if (!profile.is_active) {
     return {
@@ -103,7 +129,7 @@ export async function createUserAction(
 
     await insertProfileAsAdmin(admin.id, {
       email: parsed.data.email,
-      passwordHash: hashPassword(parsed.data.password),
+      passwordHash: await hashPassword(parsed.data.password),
       fullName: parsed.data.full_name,
       role: parsed.data.role,
       isPse: parsed.data.is_pse,

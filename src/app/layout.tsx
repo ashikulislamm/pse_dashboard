@@ -21,9 +21,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/* Apply the saved theme before first paint to avoid a light/dark flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('pse-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;var c=document.documentElement.classList;c.toggle('dark',d);c.toggle('light',!d)}catch(e){}",
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         {children}
-        <Toaster position="bottom-right" duration={4000} />
+        <Toaster
+          position="top-right"
+          duration={4000}
+          offset={{ top: 64, right: 24 }}
+          mobileOffset={{ top: 64, right: 16 }}
+        />
       </body>
     </html>
   );

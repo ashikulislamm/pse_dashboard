@@ -10,6 +10,7 @@ import type { PipelineLiteOption } from '@/modules/pipelines';
 import {
   AutoLinkedNotes,
   Button,
+  ButtonLink,
   DataTable,
   type DataTableColumn,
   DatePicker,
@@ -52,6 +53,7 @@ export function MeetingsView({
   preselectedPipelineId,
 }: MeetingsViewProps) {
   const router = useRouter();
+  const [isPending, startTransition] = React.useTransition();
   const [showCreateModal, setShowCreateModal] = React.useState(initialOpenCreate);
   const [editingMeeting, setEditingMeeting] = React.useState<MeetingListItem | null>(
     null,
@@ -84,7 +86,7 @@ export function MeetingsView({
     if (nextToDate) params.set('toDate', nextToDate);
 
     const qs = params.toString();
-    router.push(qs ? `/meetings?${qs}` : '/meetings');
+    startTransition(() => router.push(qs ? `/meetings?${qs}` : '/meetings'));
   };
 
   const resetFilters = () => {
@@ -93,7 +95,7 @@ export function MeetingsView({
     setOwnerId('');
     setFromDate('');
     setToDate('');
-    router.push('/meetings');
+    startTransition(() => router.push('/meetings'));
   };
 
   const hasActiveFilters = Boolean(
@@ -263,7 +265,7 @@ export function MeetingsView({
           }
 
           return (
-            <div className="flex items-center justify-end gap-1.5 py-1">
+            <div className="flex min-w-max items-center justify-end gap-1.5 py-1">
               {editable && row.status === 'scheduled' && (
                 <Button
                   type="button"
@@ -277,15 +279,13 @@ export function MeetingsView({
                 </Button>
               )}
 
-              <Link href={`/activities?${followupParams.toString()}`}>
-                <Button type="button" variant="secondary" size="compact">
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>
-                    Add follow-up
-                    {row.followup_count > 0 ? ` (${row.followup_count})` : ''}
-                  </span>
-                </Button>
-              </Link>
+              <ButtonLink href={`/activities?${followupParams.toString()}`}>
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>
+                  Add follow-up
+                  {row.followup_count > 0 ? ` (${row.followup_count})` : ''}
+                </span>
+              </ButtonLink>
 
               {editable && (
                 <Button
@@ -472,6 +472,7 @@ export function MeetingsView({
       <DataTable
         columns={columns}
         rows={meetings}
+        loading={isPending}
         getRowKey={(row) => row.id}
         emptyMessage={
           hasActiveFilters

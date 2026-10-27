@@ -60,7 +60,7 @@ flowchart TB
   RC --> MW --> RSC
   RC --> SA
   RSC --> DC
-  DC -->|miss: service-role, server only| PG
+  DC -->|miss: owner connection, server only| PG
   RSC -->|user-scoped reads| PG
   SA -->|user-scoped writes| PG
   SA -->|revalidateTag| DC
@@ -264,7 +264,7 @@ Two lenses: **Monetary** (pipeline, won, receipts, attainment, vertical) and **N
 | 4 | *(optional)* Redis | Upstash via Vercel Marketplace | Shared cache if scaled out |
 
 ### 10.2 Why sharing the cache is safe
-All PSE members may see all PSE data, so cached results are identical for every authorized user. Cached functions cannot read request cookies, so they use the server-only service-role client; therefore **authorization is performed by the caller before the cache is hit**. Cache keys contain only filter parameters (period, team/member, vertical), never user identity.
+All PSE members may see all PSE data, so cached results are identical for every authorized user. Cached functions cannot read request cookies, so they use the server-only `pg` pool (owner connection, bypassing RLS); therefore **authorization is performed by the caller before the cache is hit**. Cache keys contain only filter parameters (period, team/member, vertical), never user identity.
 
 ### 10.3 Write → invalidation map
 

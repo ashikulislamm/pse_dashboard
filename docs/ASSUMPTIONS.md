@@ -7,7 +7,7 @@ This document locks the scope, architectural assumptions, and ambiguity defaults
 ## 1. Scope Statement
 
 ### In Scope (Built)
-- **Authentication & RBAC:** Supabase Auth (email + password), session middleware, PSE-only visibility (`is_pse_member()`), and role-based write access (`admin`, `target_manager`, `member`) enforced in both the server layer and PostgreSQL Row-Level Security (RLS).
+- **Authentication & RBAC:** Postgres-backed email + password (`scrypt`) with HS256 JWT session cookies, session proxy, PSE-only visibility (`is_pse_member()`), and role-based write access (`admin`, `target_manager`, `member`) enforced in both the server layer and PostgreSQL Row-Level Security (RLS).
 - **Contacts Module:** Individual and Company contacts, structured organization and designation fields, multi-channel (`email` / `phone`) repeater with mandatory `>= 1` channel constraint, normalized deduplication on both email (lowercase) and phone (E.164), relationship intelligence notes, related records timeline, and reusable inline `ContactPicker`.
 - **Pipelines & Receipts Module:** Money-only opportunities (`expected_amount > 0`), Cash and valued In-kind contributions (with mandatory valuation note), Individual and Company party modes (with Point of Contact and Secondary Contact), stage progression with `pipeline_stage_history`, Won/Lost confirmation (with mandatory `lost_reason`), multi-currency conversion to base currency (`BDT`), and `pipeline_receipts` tracking realized funds.
 - **Meetings Module:** Structured meeting records linked to a Contact or Pipeline (`CHECK` constraint), read-only organization/designation derived from the linked contact, `scheduled` / `done` status tracking, and follow-up activity shortcut.

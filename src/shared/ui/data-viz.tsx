@@ -32,7 +32,7 @@ export function KpiTile({ label, value, context, href, className }: KpiTileProps
   const valueNode = (
     <div
       className={cn(
-        'mt-1 text-[28px] leading-8 font-semibold text-foreground tabular-nums',
+        'mt-1 text-[22px] leading-8 font-semibold text-foreground tabular-nums break-words sm:text-[28px]',
         href && 'underline-offset-4 hover:underline',
       )}
     >

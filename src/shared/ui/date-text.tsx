@@ -39,7 +39,7 @@ export function DateText({
         : undefined;
 
   return (
-    <time dateTime={iso} className={cn('tabular-nums', className)} {...props}>
+    <time dateTime={iso} className={cn('tabular-nums whitespace-nowrap', className)} {...props}>
       {formatted}
     </time>
   );

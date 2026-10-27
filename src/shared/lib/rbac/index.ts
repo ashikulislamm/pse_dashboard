@@ -75,5 +75,6 @@ export {
   verifySessionToken,
   hashPassword,
   verifyPassword,
+  DUMMY_PASSWORD_HASH,
   type SessionPayload,
 } from './session';

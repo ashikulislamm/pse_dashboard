@@ -8,7 +8,7 @@ export default function DashboardPage() {
         description="Monetary fundraising performance and non-monetary work metrics."
       />
       <EmptyState
-        message="No data for this period. Connect Supabase in Phase 2 to load live metrics."
+        message="No data for this period."
         actionLabel="View contacts"
         actionHref="/contacts"
       />

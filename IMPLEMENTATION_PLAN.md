@@ -145,7 +145,7 @@ Aggregations as SQL (versioned, testable): `fn_monetary_summary(period, group_by
 Three layers, each with a stated purpose:
 
 1. **Server data cache (primary)** — dashboard aggregate queries wrapped in Next's tag-based cache (key: period + filters). Tags: `dashboard`, `pipelines`, `receipts`, `targets`, `activities`, `meetings`. Every server action that writes calls `revalidateTag` for affected tags → dashboards are fast yet never stale after a write. TTL fallback 5 min.
-   *Design point:* cached functions can't read request cookies, so they use a server-only **service-role** client. **Authorization happens before the cached call** (middleware + `requireUser()` + `requireRole()`), and results contain only PSE data (all-PSE visibility makes the shared cache safe). Service key never leaves server.
+   *Design point:* cached functions can't read request cookies, so they read through the server-only `pg` pool (owner connection). **Authorization happens before the cached call** (middleware + `requireUser()` + `requireRole()`), and results contain only PSE data (all-PSE visibility makes the shared cache safe). `DATABASE_URL` never leaves the server.
 2. **Client cache** — TanStack Query for list filters/search/optimistic kanban moves (stale-while-revalidate).
 3. **DB-level** — indexed SQL functions; optional **materialized view** `mv_monthly_achievement` refreshed on write/cron if profiling shows need. Optional Upstash Redis (Vercel Marketplace) as a drop-in for layer 1 if multi-region.
 
@@ -173,7 +173,7 @@ Estimate assumes 1 developer, ~15 working days. If the assessment deadline is sh
 
 ### Phase 2 — Project initialization & infrastructure (Day 2)
 1. `npx create-next-app@latest` (TS, Tailwind, App Router, ESLint, `src/`), **npm** (`package-lock.json`).
-2. Install: shadcn/ui, supabase-js + `@supabase/ssr`, zod, react-hook-form, TanStack Query/Table, recharts, dnd-kit, date-fns, libphonenumber-js, vitest, playwright, eslint-plugin-boundaries, prettier, husky + lint-staged.
+2. Install: shadcn-style UI primitives, `pg`, zod, react-hook-form, TanStack Query/Table, recharts, dnd-kit, date-fns, libphonenumber-js, vitest, playwright, eslint-plugin-boundaries, prettier, husky + lint-staged.
 3. `git init`; GitHub repo `pse-dashboard`; branch model: `main` (prod) ← `develop` ← feature branches; Conventional Commits; PR template; branch protection.
 4. Supabase project(s): `dev` and `prod`; `supabase init`, link, `.env.example`.
 5. Vercel project linked to GitHub; env vars per environment; preview deploys on PRs.

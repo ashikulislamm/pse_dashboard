@@ -1,5 +1,12 @@
 import crypto from 'node:crypto';
+import { promisify } from 'node:util';
 import type { AppRole } from '@/types/database';
+
+const scrypt = promisify(crypto.scrypt) as (
+  password: string,
+  salt: string,
+  keylen: number,
+) => Promise<Buffer>;
 
 export const SESSION_COOKIE_NAME = 'pse_session';
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -18,8 +25,22 @@ export interface SessionPayload {
   exp: number; // Expiration time (Unix seconds)
 }
 
+const DEV_FALLBACK_SECRET = 'pse-dashboard-local-dev-only-secret';
+const MIN_SECRET_LENGTH = 32;
+
 function getAuthSecret(): string {
-  return process.env.AUTH_SECRET || 'pse-dashboard-dev-secret-change-in-production';
+  const secret = process.env.AUTH_SECRET;
+
+  if (process.env.NODE_ENV === 'production') {
+    if (!secret || secret.length < MIN_SECRET_LENGTH) {
+      throw new Error(
+        `AUTH_SECRET must be set to a random value of at least ${MIN_SECRET_LENGTH} characters in production.`,
+      );
+    }
+    return secret;
+  }
+
+  return secret || DEV_FALLBACK_SECRET;
 }
 
 function signHs256(signingInput: string, secret: string): string {
@@ -99,24 +120,31 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
 }
 
 /**
- * Hashes a plaintext password using `crypto.scryptSync` (`saltHex:hashHex`).
+ * Hashes a plaintext password using async `crypto.scrypt` (`saltHex:hashHex`).
+ * Async so a login attempt never blocks the event loop.
  */
-export function hashPassword(password: string): string {
+export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString('hex');
-  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
+  const derivedKey = (await scrypt(password, salt, 64)).toString('hex');
   return `${salt}:${derivedKey}`;
 }
 
 /**
  * Verifies a plaintext password against a stored `saltHex:hashHex` string.
  */
-export function verifyPassword(password: string, storedHash: string): boolean {
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   const [salt, keyHex] = storedHash.split(':');
   if (!salt || !keyHex) return false;
 
   const keyBuf = Buffer.from(keyHex, 'hex');
-  const derivedBuf = crypto.scryptSync(password, salt, 64);
+  const derivedBuf = await scrypt(password, salt, 64);
 
   if (keyBuf.length !== derivedBuf.length) return false;
   return crypto.timingSafeEqual(keyBuf, derivedBuf);
 }
+
+/**
+ * Valid-format hash verified against when the email does not exist, so response time
+ * does not reveal which emails are registered.
+ */
+export const DUMMY_PASSWORD_HASH = `${'00'.repeat(16)}:${'00'.repeat(64)}`;

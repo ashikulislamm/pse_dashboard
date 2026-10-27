@@ -74,6 +74,7 @@ export function ActivitiesView({
   preselectedTitle,
 }: ActivitiesViewProps) {
   const router = useRouter();
+  const [isPending, startTransition] = React.useTransition();
   const [showCreateModal, setShowCreateModal] = React.useState(initialOpenCreate);
   const [editingActivity, setEditingActivity] =
     React.useState<ActivityListItem | null>(null);
@@ -118,7 +119,7 @@ export function ActivitiesView({
     if (nextToDate) params.set('toDate', nextToDate);
 
     const qs = params.toString();
-    router.push(qs ? `/activities?${qs}` : '/activities');
+    startTransition(() => router.push(qs ? `/activities?${qs}` : '/activities'));
   };
 
   const resetFilters = () => {
@@ -129,7 +130,7 @@ export function ActivitiesView({
     setOwnerId('');
     setFromDate('');
     setToDate('');
-    router.push('/activities');
+    startTransition(() => router.push('/activities'));
   };
 
   const hasActiveFilters = Boolean(
@@ -601,6 +602,7 @@ export function ActivitiesView({
       <DataTable
         columns={columns}
         rows={activities}
+        loading={isPending}
         getRowKey={(row) => row.id}
         emptyMessage={
           hasActiveFilters

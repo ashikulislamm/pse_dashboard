@@ -11,24 +11,32 @@ const eslintConfig = defineConfig([
       boundaries,
     },
     settings: {
+      // Resolve the "@/..." path alias so boundary rules can see aliased imports.
+      'import/resolver': {
+        typescript: { alwaysTryTypes: true, project: './tsconfig.json' },
+      },
       'boundaries/include': ['src/**/*'],
       'boundaries/elements': [
         {
           type: 'app',
           pattern: ['src/app/**/*', 'src/proxy.ts'],
+          mode: 'full',
         },
         {
           type: 'module',
           pattern: 'src/modules/*/**/*',
+          mode: 'full',
           capture: ['moduleName'],
         },
         {
           type: 'shared',
           pattern: 'src/shared/**/*',
+          mode: 'full',
         },
         {
           type: 'types',
           pattern: 'src/types/**/*',
+          mode: 'full',
         },
       ],
     },
@@ -89,6 +97,12 @@ const eslintConfig = defineConfig([
             {
               group: ['@/shared/lib/supabase', '@/shared/lib/supabase/*'],
               message: 'Only repository.ts or shared/lib/rbac may import the Supabase client.',
+            },
+            {
+              // Modules are consumed only through their public API: '@/modules/<name>'.
+              // (Files inside a module import each other with relative paths.)
+              group: ['@/modules/*/*'],
+              message: "Import a module only through its public API ('@/modules/<name>').",
             },
           ],
         },

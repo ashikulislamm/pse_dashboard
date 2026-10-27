@@ -74,30 +74,30 @@ No more clarification cycles; there is no time to wait. Record these as **assump
 ## P1 — Project initialization & infrastructure (Mon, 2 h)
 
 ### Steps
-1. `pnpm create next-app@latest pse-dashboard` — TypeScript, Tailwind, ESLint, App Router, `src/` dir, import alias `@/*`. Move/clone so the repo root is `d:\pse_dashboard`.
+1. `npx create-next-app@latest pse-dashboard` — TypeScript, Tailwind, ESLint, App Router, `src/` dir, import alias `@/*`. Move/clone so the repo root is `d:\pse_dashboard`.
 2. Install:
    ```
-   pnpm add @supabase/supabase-js @supabase/ssr zod react-hook-form @hookform/resolvers @tanstack/react-query @tanstack/react-table recharts date-fns libphonenumber-js lucide-react
-   pnpm add -D vitest @vitejs/plugin-react @playwright/test eslint-plugin-boundaries prettier husky lint-staged supabase
-   pnpm dlx shadcn@latest init   # then add: button input select textarea dialog form table tabs badge card calendar popover command sonner dropdown-menu
+   npm install pg server-only zod react-hook-form @hookform/resolvers @tanstack/react-query @tanstack/react-table recharts date-fns libphonenumber-js lucide-react
+   npm install -D vitest @vitejs/plugin-react @playwright/test eslint-plugin-boundaries prettier husky lint-staged @types/pg
+   (shadcn-style UI primitives live in src/shared/ui — no extra CLI needed). Core primitives: button input select textarea dialog form table tabs badge card calendar popover command sonner dropdown-menu
    ```
 3. Folder skeleton exactly as in ARCHITECURE.md §6:
    `src/modules/{auth,contacts,pipelines,meetings,activities,targets,dashboard,admin}` each with `schema.ts repository.ts service.ts actions.ts queries.ts components/ index.ts`, plus `src/shared/lib/{supabase,cache,rbac,periods,money,phone}`.
 4. `eslint-plugin-boundaries` config: `app → modules → shared`; cross-module imports only via `index.ts`; Supabase client imported only by `repository.ts` and `shared/lib/supabase`.
 5. `git init`; `.gitignore` (`.env*`, `.next`); create GitHub repo `pse-dashboard`; first commit; push `main`. Branch `develop` for work; merge to `main` at each gate (Vercel deploys `main`).
-6. **Supabase**: create one project. `pnpm supabase init`, `pnpm supabase link --project-ref <ref>`. Keys into `.env.local`:
+6. **Supabase**: create one project and copy the **Session Pooler** connection string (Project Settings > Database). Put these in `.env` (local) and in Vercel env vars:
    ```
    DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
-   AUTH_SECRET=pse-dashboard-dev-secret-change-in-production
+   AUTH_SECRET=<random string, 32+ chars; production refuses to start sessions without it>
    NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
-   Commit `.env.example` with empty values.
-7. **Vercel**: import the GitHub repo, set the same three env vars (Production + Preview), deploy. The service-role key must **not** be exposed to the browser bundle.
-8. **CI** (`.github/workflows/ci.yml`): `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm typecheck` → `pnpm test` → `pnpm build`.
-9. Scripts in `package.json`: `dev`, `build`, `lint`, `typecheck` (`tsc --noEmit`), `test`, `db:push`, `db:types` (`supabase gen types typescript --linked > src/types/database.ts`).
+   Optional: `DATABASE_CA_CERT` (verify TLS), `DATABASE_POOL_MAX` (default 3). Commit `.env.example` with empty values.
+7. **Vercel**: import the GitHub repo, set the same env vars (Production + Preview), deploy. `DATABASE_URL` and `AUTH_SECRET` are server-only and must never be `NEXT_PUBLIC_*`.
+8. **CI** (`.github/workflows/ci.yml`): `npm ci` → `npm run lint` → `npm run lint:design` → `npm run typecheck` → `npm test` → `npm run build`.
+9. Scripts in `package.json`: `dev`, `build`, `lint`, `lint:design`, `typecheck` (`tsc --noEmit`), `test`, `db:push` (ledgered migrations), `db:seed`, `db:test`.
 
 ### Shared helpers to write now (used by everything)
-- `shared/lib/supabase/{server,client,admin}.ts` — `server` uses `@supabase/ssr` with cookies; `admin` uses the service-role key and starts with `import 'server-only'`.
+- `shared/lib/supabase/{admin,server}.ts` — `admin` holds the singleton `pg` pool over `DATABASE_URL` (starts with `import 'server-only'`); `server` exposes `withUserTransaction(userId, fn)`, which runs `SET LOCAL ROLE authenticated` and sets the user id so Postgres RLS applies.
 - `shared/lib/cache/index.ts` — a single `cached(fn, keyParts, tags, revalidate)` wrapper around the version-appropriate Next caching API, so the rest of the code never imports Next cache primitives directly.
 - `shared/lib/rbac/index.ts` — `requireUser()`, `requireRole(...roles)` (throws / redirects).
 - `shared/lib/phone.ts` — `normalizePhone(raw, defaultCountry='BD')` → E.164 via libphonenumber-js, returns `null` if invalid. `normalizeEmail` = trim + lowercase.
@@ -111,7 +111,7 @@ Vercel production URL shows the app; CI green; repo on GitHub. **Commit message 
 
 ## P2 — Database, auth, RBAC (Mon, 4 h)
 
-Create migrations with `pnpm supabase migration new <name>`; one file per concern; push with `pnpm db:push`.
+Create migrations as numbered SQL files in `supabase/migrations/` (one file per concern); apply with `npm run db:push` (ledgered: each file runs once).
 
 ### 2.1 Migration order and content
 
@@ -253,7 +253,7 @@ create policy contacts_upd  on contacts for update using (owner_id = auth.uid() 
 - `/login` page (email+password, server action `signIn`).
 - Profile auto-create trigger on `auth.users` insert.
 - App shell: sidebar (Dashboard, Contacts, Pipelines, Meetings, Activities, Targets, role-gated Admin), header with user menu and sign-out.
-- `pnpm db:types` → `src/types/database.ts`.
+- Types in `src/types/database.ts` are maintained by hand to match the migrations.
 
 ### 2.3 Tests (SQL + unit, 30 min)
 Pgtap-style or a `scripts/db-tests.ts` against the project, checking: duplicate email rejected, duplicate phone rejected, contact without channel rejected, pipeline amount ≤ 0 rejected, in-kind without valuation rejected, meeting with no contact/pipeline rejected, non-PSE user reads zero rows, member cannot write targets, locked plan rejects edits. Unit: `normalizePhone`, `allocateByPercent` (sums exact), `periodRange`.
@@ -360,7 +360,7 @@ Unequal quarters that don't add to annual cannot be saved; percentages ≠ 100 r
 
 ## P7 — Dashboards (Wed morning, 4 h)
 
-### SQL read-model functions (`007_dashboard_functions.sql`)
+### SQL read-model functions (`008_dashboard_functions.sql`)
 All take `(p_start date, p_end date, p_user uuid default null, p_vertical uuid default null)`.
 
 ```sql
@@ -419,7 +419,7 @@ Seeded data reproduces a hand-computed Q result; filtering by member/vertical ch
    - key = `['dashboard', lens, periodType, periodIndex, year, userId|all, verticalId|all]`
    - tags: dashboard reads → `dashboard`; config → `config`
    - fallback TTL 300 s.
-3. **Authorization before cache:** page calls `requireUser()` first; cached functions use the service-role client and run only after that. Cache keys contain filters, never the viewer's identity.
+3. **Authorization before cache:** page calls `requireUser()` first; cached functions read through the server-only `pg` pool (owner connection) and run only after that. Cache keys contain filters, never the viewer's identity.
 4. Every server action calls `revalidateTag` per the table in ARCHITECURE.md §10.3.
 5. Client: TanStack Query provider for list filters/search and optimistic stage change.
 6. **Measure:** seed ≥ 5k pipelines / 20k activities with a script; record cold vs warm server time for `/dashboard` (Vercel logs or `console.time` in dev) and add `EXPLAIN ANALYZE` indexes if needed. Paste results into `docs/CACHING.md`.
@@ -434,8 +434,8 @@ Seeded data reproduces a hand-computed Q result; filtering by member/vertical ch
 | Unit | `vitest`: phone/email normalize, `allocateByPercent`, `periodRange`, activity default class, FX base |
 | DB rules | `scripts/db-tests.ts` (from P2) re-run |
 | E2E (one Playwright test, the happy path) | login as member → create contact (duplicate attempt blocked) → new deal with inline contact → move to Won → add receipt → dashboard shows it → log in as `safina` → create & publish target → edit rejected |
-| Security | log in as a non-PSE profile → 0 rows and `/no-access`; confirm `SUPABASE_SERVICE_ROLE_KEY` is absent from the client bundle (search `.next/static`) |
-| Quality | `pnpm lint && pnpm typecheck && pnpm build`; Lighthouse run on `/dashboard`; mobile-width check |
+| Security | log in as a non-PSE profile → 0 rows and `/no-access`; confirm `DATABASE_URL` and `AUTH_SECRET` values are absent from the client bundle (search `.next/static`) |
+| Quality | `npm run lint && npm run typecheck && npm run build`; Lighthouse run on `/dashboard`; mobile-width check |
 
 Fix only P1/P2 defects. Anything else goes into `docs/KNOWN_LIMITATIONS.md` honestly.
 

@@ -8,6 +8,7 @@ import { cn } from '@/shared/lib/utils';
 import {
   AutoLinkedNotes,
   Button,
+  ButtonLink,
   Card,
   DateText,
   Money,
@@ -25,11 +26,7 @@ export interface ContactDetailViewProps {
 
 type RelatedTab = 'pipelines' | 'meetings' | 'activities' | 'individuals';
 
-export function ContactDetailView({
-  contact,
-  canEdit,
-  companyOptions,
-}: ContactDetailViewProps) {
+export function ContactDetailView({ contact, canEdit, companyOptions }: ContactDetailViewProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<RelatedTab>('pipelines');
@@ -58,11 +55,9 @@ export function ContactDetailView({
           title={contact.name}
           description={
             contact.type === 'individual'
-              ? [contact.designation, contact.organization_name]
-                  .filter(Boolean)
-                  .join(' · ') || 'Individual contact'
-              : [contact.industry, contact.website].filter(Boolean).join(' · ') ||
-                'Company contact'
+              ? [contact.designation, contact.organization_name].filter(Boolean).join(' · ') ||
+                'Individual contact'
+              : [contact.industry, contact.website].filter(Boolean).join(' · ') || 'Company contact'
           }
           actions={
             canEdit ? (
@@ -157,10 +152,7 @@ export function ContactDetailView({
             </dl>
           </Card>
 
-          <Card
-            title="Contact channels"
-            description="Normalized emails and E.164 phone numbers."
-          >
+          <Card title="Contact channels" description="Normalized emails and E.164 phone numbers.">
             <ul className="divide-y divide-border text-[13px] leading-5">
               {contact.channels.map((ch) => (
                 <li
@@ -169,9 +161,7 @@ export function ContactDetailView({
                 >
                   <div className="flex items-center gap-2">
                     <Tag>{ch.kind}</Tag>
-                    <span className="font-medium text-foreground tabular-nums">
-                      {ch.value}
-                    </span>
+                    <span className="font-medium text-foreground tabular-nums">{ch.value}</span>
                   </div>
                   {ch.is_primary && (
                     <span className="text-[12px] text-muted-foreground">Primary</span>
@@ -247,11 +237,9 @@ export function ContactDetailView({
             {activeTab === 'pipelines' && (
               <div>
                 <div className="mb-3 flex items-center justify-end">
-                  <Link href={`/pipelines?new=1&contactId=${contact.id}`}>
-                    <Button variant="secondary" size="compact">
-                      New pipeline for {contact.name}
-                    </Button>
-                  </Link>
+                  <ButtonLink href={`/pipelines?new=1&contactId=${contact.id}`}>
+                    New pipeline
+                  </ButtonLink>
                 </div>
                 {contact.pipelines.length === 0 ? (
                   <p className="py-4 text-[13px] text-muted-foreground">
@@ -316,11 +304,9 @@ export function ContactDetailView({
             {activeTab === 'meetings' && (
               <div>
                 <div className="mb-3 flex items-center justify-end">
-                  <Link href={`/meetings?new=1&contactId=${contact.id}`}>
-                    <Button variant="secondary" size="compact">
-                      Schedule meeting with {contact.name}
-                    </Button>
-                  </Link>
+                  <ButtonLink href={`/meetings?new=1&contactId=${contact.id}`}>
+                    Schedule meeting
+                  </ButtonLink>
                 </div>
                 {contact.meetings.length === 0 ? (
                   <p className="py-4 text-[13px] text-muted-foreground">
@@ -351,9 +337,7 @@ export function ContactDetailView({
                                 {m.status}
                               </Tag>
                             </td>
-                            <td className="px-3 text-foreground">
-                              {m.description ?? '—'}
-                            </td>
+                            <td className="px-3 text-foreground">{m.description ?? '—'}</td>
                             <td className="px-3 text-muted-foreground">{m.owner_name}</td>
                           </tr>
                         ))}
@@ -367,11 +351,9 @@ export function ContactDetailView({
             {activeTab === 'activities' && (
               <div>
                 <div className="mb-3 flex items-center justify-end">
-                  <Link href={`/activities?new=1&contactId=${contact.id}`}>
-                    <Button variant="secondary" size="compact">
-                      Log activity for {contact.name}
-                    </Button>
-                  </Link>
+                  <ButtonLink href={`/activities?new=1&contactId=${contact.id}`}>
+                    Log activity
+                  </ButtonLink>
                 </div>
                 {contact.activities.length === 0 ? (
                   <p className="py-4 text-[13px] text-muted-foreground">
@@ -445,12 +427,8 @@ export function ContactDetailView({
                                 {ind.name}
                               </Link>
                             </td>
-                            <td className="px-3 text-muted-foreground">
-                              {ind.designation ?? '—'}
-                            </td>
-                            <td className="px-3 tabular-nums">
-                              {ind.primary_channel ?? '—'}
-                            </td>
+                            <td className="px-3 text-muted-foreground">{ind.designation ?? '—'}</td>
+                            <td className="px-3 tabular-nums">{ind.primary_channel ?? '—'}</td>
                             <td className="px-3">
                               <Tag>{ind.status}</Tag>
                             </td>
