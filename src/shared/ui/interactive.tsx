@@ -533,11 +533,7 @@ function NavList({
   );
 }
 
-/**
- * App shell (DESIGN.md §5 App shell):
- * Left sidebar 232px (>= 1024px) or a slide-in drawer below that, top bar 56px
- * (menu + breadcrumb left, theme toggle and user right).
- */
+/** App shell: sidebar (a drawer on small screens) and top bar. */
 export function AppShell({ user, onSignOut, children }: AppShellProps) {
   const pathname = usePathname() || '/dashboard';
   const [navOpen, setNavOpen] = React.useState(false);

@@ -22,10 +22,7 @@ const EXISTING_CONTACT_ID = '20000000-0000-0000-0000-000000000003';
 const LOCKED_PLAN_ID = '70000000-0000-0000-0000-000000000001';
 const LOCKED_QUARTER_ID = '70000000-0000-0000-0000-000000000101';
 
-/**
- * Helper: runs a block inside a transaction that ALWAYS rolls back after asserting
- * whether it threw an expected error or succeeded.
- */
+/** Runs `fn` in a transaction that always rolls back, and asserts whether it throws. */
 async function expectFailure(name, fn, expectedMessagePattern) {
   const client = await pool.connect();
   try {

@@ -42,10 +42,7 @@ export interface MeetingLiteOption {
   description: string | null;
 }
 
-/**
- * Lists meetings matching optional filters, deriving contact, organization name, and designation
- * directly from the linked contact (or fallback pipeline contact) via SQL joins.
- */
+/** Lists meetings with optional filters. Contact details come from the linked contact or the pipeline's contact. */
 export async function listMeetings(
   userId: string,
   filters: MeetingFilters = {},

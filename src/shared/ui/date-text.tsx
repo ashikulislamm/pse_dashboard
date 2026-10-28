@@ -19,11 +19,7 @@ export interface DateTextProps extends React.HTMLAttributes<HTMLTimeElement> {
   includeTime?: boolean;
 }
 
-/**
- * Canonical date/time formatter component (DESIGN.md §4 & §13.3).
- * Formats as `26 Oct 2026` or `26 Oct 2026, 3:30 PM` with `tabular-nums`.
- * Missing values render as `—`.
- */
+/** Formats a date (26 Oct 2026) or datetime. Missing values show —. */
 export function DateText({
   value,
   includeTime = false,

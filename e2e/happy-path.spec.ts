@@ -30,7 +30,7 @@ async function cleanupE2EArtifacts() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Temporarily bypass lock guard triggers inside cleanup transaction so TEST_TARGET_YEAR can be reset cleanly
+    // Bypass the lock triggers in cleanup so TEST_TARGET_YEAR can be reset
     await client.query(`SET LOCAL session_replication_role = 'replica'`);
 
     await client.query(`DELETE FROM target_plans WHERE year = $1`, [TEST_TARGET_YEAR]);
@@ -81,7 +81,7 @@ test.describe('PSE Dashboard — Phase 9 E2E Happy Path & Security Suite', () =>
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/dashboard/);
 
-    // Record current Q4 / current-period dashboard Achieved text before adding our receipt
+    // Note the current dashboard Achieved text before adding our receipt
     await page.getByRole('link', { name: 'Contacts' }).click();
     await expect(page).toHaveURL(/\/contacts/);
 
@@ -93,7 +93,7 @@ test.describe('PSE Dashboard — Phase 9 E2E Happy Path & Security Suite', () =>
       .fill('tariq.hasan@meghna-demo.example.com');
     await page.getByRole('button', { name: 'Save contact' }).click();
 
-    // Duplicate warning alert must appear and block creation
+    // Duplicate warning must show and block creation
     await expect(page.getByText(/Duplicate email found/i)).toBeVisible();
     await expect(page.getByRole('link', { name: 'Open contact' })).toBeVisible();
 
@@ -112,7 +112,7 @@ test.describe('PSE Dashboard — Phase 9 E2E Happy Path & Security Suite', () =>
     await page.locator('#pipeline-expected-amount').fill('300000');
     await page.getByRole('button', { name: 'Individual donor' }).click();
 
-    // Open ContactPicker and create a new individual contact inline
+    // Create a new individual contact inline from the picker
     await page.locator('#pipeline-individual-contact').click();
     await page.getByRole('button', { name: /Create new contact/i }).click();
     await page.locator('#contact-name').fill(inlineDonorName);
@@ -219,7 +219,7 @@ test.describe('PSE Dashboard — Phase 9 E2E Happy Path & Security Suite', () =>
     }
     await page.getByRole('button', { name: 'Next' }).click();
 
-    // Step 4: Verticals (split evenly across verticals for every member in all 4 quarters)
+    // Step 4: Verticals (even split for every member, all 4 quarters)
     await expect(
       page.getByRole('heading', { name: 'Q1 — vertical split' }),
     ).toBeVisible();

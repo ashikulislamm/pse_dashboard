@@ -117,7 +117,7 @@ export function PipelineDetailView({
         }
       />
 
-      {/* Won vs. Received vs. Unrealized Banner (PHASES.md P4) */}
+      {/* Won, received and unrealized banner */}
       {(isWon || receipts.length > 0) && (
         <div className="mb-6 rounded-md border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

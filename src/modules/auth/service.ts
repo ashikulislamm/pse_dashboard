@@ -1,8 +1,6 @@
 import type { AppRole } from '@/types/database';
 
-/**
- * Pure business rules for authentication and role management (framework-free).
- */
+/** Pure auth and role rules. */
 export function canAccessAdmin(role: AppRole): boolean {
   return role === 'admin';
 }

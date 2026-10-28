@@ -1,5 +1,5 @@
 -- 005_targets.sql
--- Target plans, quarters, member x vertical lines, total reconciliation, and immutability lock triggers
+-- Target plans, quarters, member x vertical lines, and the lock triggers
 
 CREATE TABLE IF NOT EXISTS target_plans (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_target_quarters_plan ON target_quarters(plan_id);
 CREATE INDEX IF NOT EXISTS idx_target_lines_quarter ON target_lines(quarter_id);
 CREATE INDEX IF NOT EXISTS idx_target_lines_user_vertical ON target_lines(user_id, vertical_id);
 
--- 1. Lock trigger on target_plans: once locked_at IS NOT NULL, no updates or deletes are permitted
+-- 1. target_plans: no updates or deletes once locked_at is set
 CREATE OR REPLACE FUNCTION fn_lock_guard_target_plans()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -53,7 +53,7 @@ BEFORE UPDATE OR DELETE ON target_plans
 FOR EACH ROW
 EXECUTE FUNCTION fn_lock_guard_target_plans();
 
--- 2. Lock trigger on target_quarters: reject insert/update/delete if parent plan is locked
+-- 2. target_quarters: reject changes when the plan is locked
 CREATE OR REPLACE FUNCTION fn_lock_guard_target_quarters()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -77,7 +77,7 @@ BEFORE INSERT OR UPDATE OR DELETE ON target_quarters
 FOR EACH ROW
 EXECUTE FUNCTION fn_lock_guard_target_quarters();
 
--- 3. Lock trigger on target_lines: reject insert/update/delete if grandparent plan is locked
+-- 3. target_lines: reject changes when the plan is locked
 CREATE OR REPLACE FUNCTION fn_lock_guard_target_lines()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -105,7 +105,7 @@ BEFORE INSERT OR UPDATE OR DELETE ON target_lines
 FOR EACH ROW
 EXECUTE FUNCTION fn_lock_guard_target_lines();
 
--- 4. Publish and lock function: verifies all totals reconcile before locking the plan
+-- 4. Publish: check every total reconciles, then lock the plan
 CREATE OR REPLACE FUNCTION publish_target_plan(p_plan_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -146,7 +146,7 @@ BEGIN
     RAISE EXCEPTION 'sum of quarterly targets (%) does not equal annual target (%)', v_q_sum, v_annual;
   END IF;
 
-  -- Check that every quarter's lines sum exactly to the quarter amount
+  -- Each quarter's lines must sum to the quarter amount
   SELECT q.quarter, q.amount AS q_amount, COALESCE(SUM(l.amount), 0) AS lines_sum
   INTO v_bad_quarter
   FROM target_quarters q
@@ -161,7 +161,7 @@ BEGIN
       v_bad_quarter.quarter, v_bad_quarter.lines_sum, v_bad_quarter.q_amount;
   END IF;
 
-  -- Check that for each member in each quarter, vertical percentages sum to 100%
+  -- Each member's vertical percentages must sum to 100% per quarter
   SELECT q.quarter, l.user_id, SUM(l.percent) AS pct_sum
   INTO v_bad_percent
   FROM target_quarters q

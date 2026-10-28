@@ -1,11 +1,7 @@
 import { cn } from '@/shared/lib/utils';
 import { Skeleton } from './primitives';
 
-/**
- * Loading-state building blocks (DESIGN.md §6: flat `--surface-2` blocks that match the final
- * layout; no shimmer or pulse). Each composition mirrors a real screen so the page does not
- * jump when data arrives.
- */
+/** Loading blocks that mirror the real screens so the layout does not jump. */
 
 /** Wraps a skeleton screen so assistive tech announces a busy region once. */
 export function LoadingRegion({

@@ -21,11 +21,7 @@ export interface ContactPickerProps {
   hasError?: boolean;
 }
 
-/**
- * Reusable ContactPicker combobox with inline contact creation (DESIGN.md §6 & PHASES.md P3).
- * Searches internal PSE contacts by name, type, or organization, and includes a final item
- * "Create new contact" that opens inline inside the picker flow without losing parent form state.
- */
+/** Contact combobox. The last option creates a new contact inline without losing the parent form state. */
 export function ContactPicker({
   id,
   options: initialOptions,

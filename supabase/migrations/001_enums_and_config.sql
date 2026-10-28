@@ -1,5 +1,5 @@
 -- 001_enums_and_config.sql
--- Enums and reference/configuration tables for PSE CRM & Performance Dashboard
+-- Enums and reference/config tables
 
 DO $$ BEGIN
   CREATE TYPE app_role AS ENUM ('admin', 'target_manager', 'member');

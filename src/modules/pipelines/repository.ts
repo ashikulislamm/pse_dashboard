@@ -160,10 +160,7 @@ export interface PipelineLiteOption {
   amount_base: number;
 }
 
-/**
- * Fetches stages, categories (with mapped verticals), currencies, FX rates, and active PSE focal people
- * on the server-only owner pool. Callers MUST authorize with `requireUser()` before invoking this.
- */
+/** Lookup data for forms: stages, categories with verticals, currencies, FX rates, focal people. Authorise with requireUser() first. */
 export async function fetchPipelineReferenceData(): Promise<PipelineReferenceData> {
   const [stagesRes, categoriesRes, currenciesRes, fxRes, peopleRes] = await Promise.all([
     queryDb<StageOption>(
@@ -216,9 +213,7 @@ export async function fetchPipelineReferenceData(): Promise<PipelineReferenceDat
   };
 }
 
-/**
- * Fetches stages, categories (with mapped verticals), currencies, FX rates, and active PSE focal people.
- */
+/** Same lookup data as above, read inside the user's transaction. */
 export async function listPipelineReferenceData(
   userId: string,
 ): Promise<PipelineReferenceData> {
@@ -275,10 +270,7 @@ export async function listPipelineReferenceData(
   });
 }
 
-/**
- * Lists pipelines matching optional filters, joined with stage, category/vertical,
- * focal person, contacts, and aggregated receipt totals.
- */
+/** Lists pipelines with optional filters, including stage, vertical, contacts and receipt totals. */
 export async function listPipelines(
   userId: string,
   filters: PipelineFilters = {},
@@ -446,10 +438,7 @@ export async function listPipelines(
   });
 }
 
-/**
- * Fetches full detail for a single pipeline, including stage history, realized receipts,
- * and linked meetings & activities.
- */
+/** Full pipeline detail: stage history, receipts, linked meetings and activities. */
 export async function getPipelineDetail(
   userId: string,
   pipelineId: string,
@@ -684,9 +673,7 @@ export async function getPipelineDetail(
   });
 }
 
-/**
- * Inserts a new pipeline record (stage history is recorded automatically by DB trigger).
- */
+/** Inserts a pipeline. The DB trigger records the first stage history row. */
 export async function createPipelineRecord(
   userId: string,
   payload: PreparedPipelinePayload,
@@ -749,9 +736,7 @@ export async function createPipelineRecord(
   });
 }
 
-/**
- * Updates an existing pipeline record. Enforces focal_person / creator / admin permission.
- */
+/** Updates a pipeline. Only the focal person, creator or an admin can. */
 export async function updatePipelineRecord(
   userId: string,
   pipelineId: string,
@@ -816,10 +801,7 @@ export async function updatePipelineRecord(
   });
 }
 
-/**
- * Moves a pipeline to `toStageId`, enforcing `lost_reason` when `targetStage.kind === 'lost'`.
- * Trigger `trg_pipeline_stage_history` automatically records the stage transition.
- */
+/** Moves a pipeline to a stage. Lost needs a reason; the trigger writes the stage history. */
 export async function changePipelineStageRecord(
   userId: string,
   pipelineId: string,
@@ -863,10 +845,7 @@ export async function changePipelineStageRecord(
   });
 }
 
-/**
- * Records a realized receipt (`pipeline_receipts`) against a Won pipeline.
- * Converts `amount` in `currency` to `amount_base` (BDT) using the latest FX rate `<= received_on`.
- */
+/** Records a receipt on a Won pipeline. amount_base uses the latest FX rate on or before received_on. */
 export async function addPipelineReceiptRecord(
   userId: string,
   input: RecordReceiptInput,
@@ -939,9 +918,7 @@ export async function addPipelineReceiptRecord(
   });
 }
 
-/**
- * Lightweight list of pipelines for pickers in Meetings & Activities.
- */
+/** Short pipeline list for the meeting and activity pickers. */
 export async function listPipelinesLite(userId: string): Promise<PipelineLiteOption[]> {
   return withUserTransaction(userId, async (client) => {
     const res = await client.query<{

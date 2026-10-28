@@ -24,10 +24,7 @@ export const targetAllocationSchema = z.object({
   verticals: z.array(targetVerticalShareSchema),
 });
 
-/**
- * A plan draft as edited in the wizard. Drafts may be incomplete (totals are only enforced on
- * publish), but every individual value must be well-formed.
- */
+/** A draft plan from the wizard. Totals can be incomplete until publish, but each value must be valid. */
 export const targetPlanDraftSchema = z.object({
   year: targetYearSchema,
   annual_amount: moneySchema.refine((v) => v > 0, 'Annual target must be greater than zero.'),

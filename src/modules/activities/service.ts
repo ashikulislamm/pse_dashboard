@@ -49,13 +49,7 @@ export interface PreparedActivityPayload {
   notes: string | null;
 }
 
-/**
- * Returns the default non-monetary reporting class (`activity_class`) for a given `activity_type`.
- * Per PHASES.md P5:
- * - `servicing` -> `'stewardship'`
- * - `prospect_engagement` -> `'prospect_engagement'`
- * - all others -> `'independent'`
- */
+/** Default reporting class: servicing is stewardship, prospect engagement keeps its name, the rest are independent. */
 export function defaultActivityClassForType(type: ActivityType): ActivityClass {
   if (type === 'servicing') return 'stewardship';
   if (type === 'prospect_engagement') return 'prospect_engagement';
@@ -65,7 +59,7 @@ export function defaultActivityClassForType(type: ActivityType): ActivityClass {
 function normalizeOptionalTimestamp(raw?: string | null): string | null {
   const trimmed = raw?.trim();
   if (!trimmed) return null;
-  // Support YYYY-MM-DD date strings or full ISO/datetime-local strings
+  // Accepts a plain date or a full datetime-local string
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     return `${trimmed}T09:00:00.000Z`;
   }
@@ -76,11 +70,7 @@ function normalizeOptionalTimestamp(raw?: string | null): string | null {
   return d.toISOString();
 }
 
-/**
- * Prepares and sanitizes an `ActivityFormInput` into a database payload.
- * Activities can exist with zero links (`contact_id`, `pipeline_id`, `meeting_id` all null)
- * and never affect monetary achievement figures.
- */
+/** Cleans the form input into a DB payload. Links are optional and activities never touch money figures. */
 export function prepareActivityPayload(
   input: ActivityFormInput,
 ): PreparedActivityPayload {
@@ -113,10 +103,7 @@ export function prepareActivityPayload(
   };
 }
 
-/**
- * Checks whether an authenticated PSE user can edit an activity.
- * Team-wide read; only `owner_id` or `admin` can edit.
- */
+/** Everyone in the team can read; only the owner or an admin can edit. */
 export function canEditActivity(
   actor: { id: string; role: AppRole },
   activity: { owner_id: string },

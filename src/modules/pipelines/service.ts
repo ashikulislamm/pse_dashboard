@@ -52,10 +52,7 @@ export interface PipelineAchievementSummary {
   isOverReceived: boolean;
 }
 
-/**
- * Resolves the latest FX rate (`rate_to_base`) for `currency` effective on or before `asOfDate`.
- * For `'BDT'` (the base currency), always returns `1`.
- */
+/** Latest FX rate on or before `asOfDate`. BDT is always 1. */
 export function resolveFxRate(
   currency: string,
   rates: FxRateOption[],
@@ -77,9 +74,7 @@ export function resolveFxRate(
   return Number(effectiveRow.rate_to_base);
 }
 
-/**
- * Converts `amount` in `currency` to base currency (BDT) using the latest FX rate `<= asOfDate`.
- */
+/** Converts an amount to BDT with the FX rate for `asOfDate`. */
 export function computeBase(
   amount: number,
   currency: string,
@@ -90,10 +85,7 @@ export function computeBase(
   return toBase(amount, currency, rate);
 }
 
-/**
- * Checks whether a pipeline can transition to a stage of `targetKind` given `reason`.
- * Moving to `'lost'` requires a non-empty `reason`.
- */
+/** Moving to Lost needs a reason. */
 export function canMoveToKind(
   targetKind: StageKind,
   reason?: string | null,
@@ -107,11 +99,7 @@ export function canMoveToKind(
   return { allowed: true };
 }
 
-/**
- * Validates whether a receipt can be recorded against a pipeline.
- * Per PHASES.md P4: Achievement comes only from `pipeline_receipts`, and receipts are allowed
- * only when the pipeline's current stage kind is `'won'`.
- */
+/** Receipts are only allowed on Won pipelines, since achievement comes from receipts alone. */
 export function validateReceiptAllowed(
   stageKind: StageKind,
   amount: number,
@@ -131,9 +119,7 @@ export function validateReceiptAllowed(
   return { allowed: true };
 }
 
-/**
- * Computes Won vs. Received vs. Unrealized (and over-receipt flag) in base currency (BDT).
- */
+/** Won, received and unrealized amounts in BDT, plus an over-receipt flag. */
 export function computePipelineAchievementSummary(
   expectedAmountBase: number,
   receiptsBaseTotal: number,
@@ -154,12 +140,12 @@ export function computePipelineAchievementSummary(
 }
 
 /**
- * Prepares and validates a `PipelineFormInput` into a sanitized DB payload:
- * - Enforces `expected_amount > 0`
- * - Enforces `in_kind_valuation_note` when `contribution_type === 'in_kind'` (and clears it for `'cash'`)
- * - Enforces `poc_contact_id` when `party_type === 'company'` (and clears POC/secondary for `'individual'`)
- * - Enforces `lost_reason` when target stage has `kind === 'lost'`
- * - Computes `amount_base` in BDT from `expected_amount` and `currency`
+ * Cleans pipeline input into a DB payload:
+ * - expected_amount must be > 0
+ * - in-kind needs a valuation note (cleared for cash)
+ * - companies need a POC contact (cleared for individuals)
+ * - Lost needs a reason
+ * - amount_base is computed in BDT
  */
 export function preparePipelinePayload(
   input: PipelineFormInput,
@@ -236,10 +222,7 @@ export function preparePipelinePayload(
   };
 }
 
-/**
- * Checks whether an authenticated PSE user is allowed to edit a pipeline or record receipts on it.
- * Writes are allowed for the pipeline's `focal_person_id`, `created_by`, or `admin`.
- */
+/** The focal person, creator or an admin can edit a pipeline and record receipts. */
 export function canEditPipeline(
   actor: { id: string; role: AppRole },
   pipeline: { focal_person_id: string; created_by: string | null },

@@ -25,9 +25,8 @@ export interface DashboardVerticalOption {
 }
 
 /*
- * Every function here runs on the owner connection, so callers MUST authorise the user first
- * (`requireUser()` in queries.ts) and only pass in already-validated filters. All values are bound
- * parameters; nothing is interpolated into SQL.
+ * Runs on the owner connection, so callers must authorise first (requireUser in queries.ts).
+ * Values are always bound parameters, never interpolated into SQL.
  */
 
 export async function getFiscalStartMonth(): Promise<number> {

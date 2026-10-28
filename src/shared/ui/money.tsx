@@ -44,10 +44,7 @@ export interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
   baseAmount?: number | null;
 }
 
-/**
- * Canonical money formatter component (DESIGN.md §4 & §13.3).
- * Always renders with `tabular-nums`. Missing values render as `—`.
- */
+/** Formats money with tabular numbers. Missing values show —. */
 export function Money({
   amount,
   currency = 'BDT',
@@ -67,10 +64,7 @@ const COMPACT_FORMATTER = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
-/**
- * Compact number for chart axes only (`1.25M`). DESIGN.md §4: the full value must always be
- * available elsewhere (table or tooltip), so never use this for figures a user reads as the answer.
- */
+/** Compact numbers (1.25M) for chart axes only. Show the full value elsewhere. */
 export function formatCompactNumber(value: number): string {
   return COMPACT_FORMATTER.format(value);
 }

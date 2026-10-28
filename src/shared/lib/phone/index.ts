@@ -1,10 +1,6 @@
 import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 
-/**
- * Normalizes a raw phone number to E.164 format (e.g., "+8801712345678").
- * Defaults to Bangladesh ('BD') when no country code prefix is supplied.
- * Returns null if the input cannot be parsed as a valid phone number.
- */
+/** Normalises to E.164. Assumes Bangladesh (BD) when there is no country code. Returns null if invalid. */
 export function normalizePhone(
   raw: string,
   defaultCountry: CountryCode = 'BD',
@@ -22,10 +18,7 @@ export function normalizePhone(
 
 const SIMPLE_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/**
- * Normalizes an email address (trim + lowercase).
- * Returns null if the email is empty or structurally invalid.
- */
+/** Trims and lowercases an email. Returns null if empty or invalid. */
 export function normalizeEmail(raw: string): string | null {
   const normalized = raw.trim().toLowerCase();
   if (!normalized || !SIMPLE_EMAIL_REGEX.test(normalized)) {

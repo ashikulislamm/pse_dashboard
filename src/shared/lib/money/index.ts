@@ -1,14 +1,9 @@
-/**
- * Rounds a number to 2 decimal places using standard half-to-even / half-up cents math.
- */
+/** Rounds to 2 decimal places. */
 export function roundCurrency(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-/**
- * Converts an amount in a given currency to the base currency (BDT)
- * using the provided exchange rate (rate_to_base).
- */
+/** Converts an amount to the base currency (BDT) using `rate_to_base`. */
 export function toBase(amount: number, currency: string, fxRate = 1): number {
   if (amount < 0 || !Number.isFinite(amount)) {
     throw new Error('Amount must be a non-negative finite number');
@@ -22,11 +17,7 @@ export function toBase(amount: number, currency: string, fxRate = 1): number {
   return roundCurrency(amount * fxRate);
 }
 
-/**
- * Allocates `total` across `percents` using the Largest Remainder Method
- * at 2 decimal places (cents/poisha), guaranteeing that the sum of the
- * returned amounts equals `roundCurrency(total)` with zero rounding drift.
- */
+/** Splits `total` by `percents` with largest-remainder rounding so the parts add up exactly. */
 export function allocateByPercent(total: number, percents: number[]): number[] {
   if (percents.length === 0) return [];
   if (total < 0 || !Number.isFinite(total)) {

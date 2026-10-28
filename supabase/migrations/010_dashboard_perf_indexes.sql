@@ -1,7 +1,6 @@
 -- 010_dashboard_perf_indexes.sql
--- Phase 8 (P8 — Caching & Query Optimization):
---   1. Covering & functional indexes eliminating sequential scans on >= 10k contacts / 5k pipelines / 20k activities.
---   2. Sargable timestamp-range predicates and single-pass aggregations for all dashboard SQL read-model functions.
+-- Indexes for the dashboard functions, plus rewrites of them that use range predicates (so the
+-- indexes get used) and single-pass aggregation. Sized for ~10k contacts, 5k pipelines, 20k activities.
 
 -- Covering index for fn_achievement and fn_trend
 CREATE INDEX IF NOT EXISTS idx_pipeline_receipts_received_covering
@@ -24,13 +23,13 @@ CREATE INDEX IF NOT EXISTS idx_meetings_scheduled_covering
   ON meetings (scheduled_at, status, owner_id)
   INCLUDE (contact_id, pipeline_id);
 
--- Partial functional covering index for fn_activity_summary, fn_contacts_engaged, and fn_member_workload
+-- Partial index on the effective timestamp, for fn_activity_summary, fn_contacts_engaged and fn_member_workload
 CREATE INDEX IF NOT EXISTS idx_activities_effective_ts_covering
   ON activities (COALESCE(occurred_at, due_at, created_at), owner_id, type, class)
   INCLUDE (contact_id)
   WHERE status <> 'cancelled';
 
--- Sargable fn_pipeline_by_kind (uses idx_pipelines_created_covering)
+-- fn_pipeline_by_kind: range predicate so it can use idx_pipelines_created_covering
 CREATE OR REPLACE FUNCTION fn_pipeline_by_kind(
   p_start date,
   p_end date,
@@ -62,7 +61,7 @@ AS $$
   ORDER BY k.kind;
 $$;
 
--- Sargable fn_won_unrealized (uses idx_pipelines_won_covering)
+-- fn_won_unrealized: uses idx_pipelines_won_covering
 CREATE OR REPLACE FUNCTION fn_won_unrealized(
   p_start date,
   p_end date,
@@ -98,7 +97,7 @@ AS $$
   LEFT JOIN received rc ON rc.pipeline_id = w.id;
 $$;
 
--- Sargable fn_lead_count (uses idx_pipelines_created_covering)
+-- fn_lead_count: uses idx_pipelines_created_covering
 CREATE OR REPLACE FUNCTION fn_lead_count(
   p_start date,
   p_end date,
@@ -118,7 +117,7 @@ AS $$
     AND (p_vertical IS NULL OR m.vertical_id = p_vertical);
 $$;
 
--- Sargable fn_meeting_summary (uses idx_meetings_scheduled_covering)
+-- fn_meeting_summary: uses idx_meetings_scheduled_covering
 CREATE OR REPLACE FUNCTION fn_meeting_summary(
   p_start date,
   p_end date,
@@ -139,7 +138,7 @@ AS $$
   ORDER BY st.status;
 $$;
 
--- Sargable fn_activity_summary (uses idx_activities_effective_ts_covering)
+-- fn_activity_summary: uses idx_activities_effective_ts_covering
 CREATE OR REPLACE FUNCTION fn_activity_summary(
   p_start date,
   p_end date,
@@ -163,7 +162,7 @@ AS $$
   ORDER BY a.type, a.class;
 $$;
 
--- Sargable fn_contacts_engaged (uses idx_activities_effective_ts_covering + idx_meetings_scheduled_covering)
+-- fn_contacts_engaged: uses idx_activities_effective_ts_covering and idx_meetings_scheduled_covering
 CREATE OR REPLACE FUNCTION fn_contacts_engaged(
   p_start date,
   p_end date,
@@ -193,7 +192,7 @@ AS $$
   ) engaged;
 $$;
 
--- Single-pass sargable fn_member_workload (eliminates per-member correlated subqueries)
+-- fn_member_workload: one pass instead of a correlated subquery per member
 CREATE OR REPLACE FUNCTION fn_member_workload(
   p_start date,
   p_end date,
@@ -234,7 +233,7 @@ AS $$
   ORDER BY pr.full_name;
 $$;
 
--- Single-pass sargable fn_trend (scans the 12-month receipt window once instead of 12 correlated subqueries)
+-- fn_trend: scans the 12-month window once instead of running 12 subqueries
 CREATE OR REPLACE FUNCTION fn_trend(
   p_year int,
   p_user uuid DEFAULT NULL,

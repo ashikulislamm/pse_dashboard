@@ -46,7 +46,7 @@ BEGIN
     RAISE EXCEPTION 'sum of quarterly targets (%) does not equal annual target (%)', v_q_sum, v_annual;
   END IF;
 
-  -- Check that every quarter's lines sum exactly to the quarter amount
+  -- Each quarter's lines must sum to the quarter amount
   SELECT q.quarter, q.amount AS q_amount, COALESCE(SUM(l.amount), 0) AS lines_sum
   INTO v_bad_quarter
   FROM target_quarters q
@@ -61,7 +61,7 @@ BEGIN
       v_bad_quarter.quarter, v_bad_quarter.lines_sum, v_bad_quarter.q_amount;
   END IF;
 
-  -- Check that for each member in each quarter, vertical percentages sum to 100%
+  -- Each member's vertical percentages must sum to 100% per quarter
   SELECT q.quarter, l.user_id, SUM(l.percent) AS pct_sum
   INTO v_bad_percent
   FROM target_quarters q

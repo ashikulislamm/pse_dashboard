@@ -94,10 +94,7 @@ function MemberVerticalGrid({
   );
 }
 
-/**
- * Read-only breakdown of a target plan: annual -> quarters -> member x vertical.
- * Used for published plans and for the wizard's review step.
- */
+/** Read-only plan breakdown: annual, quarters, then member x vertical. Used for published plans and the wizard review. */
 export function TargetPlanSummary({
   annual,
   quarters,

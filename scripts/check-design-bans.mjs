@@ -5,9 +5,7 @@ const SRC_DIR = path.resolve(process.cwd(), 'src');
 const BANNED_PATTERN =
   /\b(bg-gradient-[a-z0-9-]+|from-[a-z0-9-]+|via-[a-z0-9-]+|to-\[|animate-(pulse|ping|bounce)|backdrop-[a-z0-9-]+|blur-[a-z0-9-]+|shadow-(lg|xl|2xl))\b/;
 
-/**
- * Recursively scan files in src/ for DESIGN.md §2 / §13.2 banned classes.
- */
+/** Scans src/ for the classes DESIGN.md bans. */
 function walk(dir, results = []) {
   if (!fs.existsSync(dir)) return results;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

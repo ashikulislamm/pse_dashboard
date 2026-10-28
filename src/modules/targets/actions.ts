@@ -49,10 +49,7 @@ export async function saveTargetDraftAction(
   }
 }
 
-/**
- * Saves the draft, then publishes (locks) it. The service validates first for clear messages;
- * `publish_target_plan` is the final authority and re-checks every total in the database.
- */
+/** Saves the draft, then publishes it. The service validates first for clear messages; publish_target_plan re-checks every total. */
 export async function publishTargetPlanAction(
   rawInput: TargetPlanDraft,
 ): Promise<TargetActionResult> {

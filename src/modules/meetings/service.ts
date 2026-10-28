@@ -18,11 +18,7 @@ export interface DerivedMeetingContactSummary {
   designation: string | null;
 }
 
-/**
- * Prepares and validates a `MeetingFormInput`:
- * - Enforces that at least one of `contact_id` or `pipeline_id` is provided.
- * - Normalizes `scheduled_at` to a valid ISO timestamp string.
- */
+/** Cleans meeting input. Needs a contact or a pipeline; scheduled_at becomes an ISO string. */
 export function prepareMeetingPayload(input: MeetingFormInput): PreparedMeetingPayload {
   const cleanStr = (val?: string | null) => {
     const t = val?.trim();
@@ -52,12 +48,7 @@ export function prepareMeetingPayload(input: MeetingFormInput): PreparedMeetingP
   };
 }
 
-/**
- * Derives the display contact, organization name, and designation for a meeting.
- * Per PHASES.md P5:
- * - If only a pipeline is chosen, the pipeline's contact is shown.
- * - Organization name and designation are displayed from the linked contact's structured fields, never typed.
- */
+/** Contact, organization and designation to show for a meeting. Falls back to the pipeline's contact. */
 export function deriveMeetingContactInfo(params: {
   directContact?: {
     id: string;
@@ -97,10 +88,7 @@ export function deriveMeetingContactInfo(params: {
   };
 }
 
-/**
- * Checks whether an authenticated PSE user can edit or mark a meeting as done.
- * Writes are allowed for the meeting's `owner_id` or `admin`.
- */
+/** Only the owner or an admin can edit a meeting or mark it done. */
 export function canEditMeeting(
   actor: { id: string; role: AppRole },
   meeting: { owner_id: string },

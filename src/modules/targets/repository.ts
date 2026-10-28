@@ -33,10 +33,7 @@ export interface TargetPlanRecord {
   lines: TargetPlanLine[];
 }
 
-/**
- * The plan's team: the actor's own team, or the first team when the actor has none.
- * Plans are unique per (year, team), so a null team would break that guarantee.
- */
+/** The actor's team, or the first team if they have none. Plans are unique per year and team, so it can't be null. */
 async function resolveTeamId(client: PoolClient, profileTeamId: string | null): Promise<string> {
   if (profileTeamId) return profileTeamId;
   const res = await client.query<{ id: string }>(`SELECT id FROM teams ORDER BY name ASC LIMIT 1`);
@@ -46,10 +43,7 @@ async function resolveTeamId(client: PoolClient, profileTeamId: string | null): 
   return res.rows[0].id;
 }
 
-/**
- * Active PSE members, plus anyone in `includeUserIds` even if since deactivated (labelled
- * "(inactive)"), so existing target lines never lose their row in a summary or a draft.
- */
+/** Active PSE members, plus anyone in `includeUserIds` (marked "(inactive)") so existing target lines keep their row. */
 export async function listTargetMembers(
   userId: string,
   includeUserIds: string[] = [],
@@ -157,11 +151,7 @@ export async function getTargetPlan(
   });
 }
 
-/**
- * Saves the whole draft in one transaction, replacing the plan's quarters and lines.
- * Draft saves are permissive about totals (those are enforced on publish); the lock triggers
- * make it impossible to touch a published plan.
- */
+/** Saves the whole draft in one transaction. Totals are only checked on publish; lock triggers protect published plans. */
 export async function saveTargetDraft(
   userId: string,
   profileTeamId: string | null,

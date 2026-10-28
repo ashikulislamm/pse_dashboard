@@ -53,9 +53,7 @@ export function canManageTargets(role: AppRole): boolean {
   return role === 'admin' || role === 'target_manager';
 }
 
-/**
- * Splits `total` into `count` parts that sum exactly to `total` (extra cents go to the first parts).
- */
+/** Splits `total` into `count` parts that add up exactly (extra cents go to the first parts). */
 export function splitEvenly(total: number, count: number): number[] {
   if (count <= 0) return [];
   const totalCents = cents(Math.max(0, total));
@@ -93,10 +91,7 @@ export function summarizePlan(draft: TargetPlanDraft): TargetPlanTotals {
   };
 }
 
-/**
- * Validates a draft against the agreed targeting rules. An empty result means the plan can be
- * published. The database re-checks every one of these in `publish_target_plan`.
- */
+/** Returns what blocks publishing; empty means ready. The DB re-checks all of it. */
 export function validatePlan(draft: TargetPlanDraft): TargetPlanIssue[] {
   const issues: TargetPlanIssue[] = [];
   const summary = summarizePlan(draft);
@@ -166,11 +161,7 @@ export function validatePlan(draft: TargetPlanDraft): TargetPlanIssue[] {
   return issues;
 }
 
-/**
- * Turns member allocations into the member x vertical lines stored in `target_lines`.
- * Uses largest-remainder rounding so each member's lines sum exactly to their amount.
- * Members with a zero amount and verticals with a zero share produce no line.
- */
+/** Turns member amounts into member x vertical lines. Largest-remainder rounding keeps each member's lines exact; zero amounts or shares make no line. */
 export function buildPlanLines(draft: TargetPlanDraft): TargetPlanLine[] {
   const lines: TargetPlanLine[] = [];
 

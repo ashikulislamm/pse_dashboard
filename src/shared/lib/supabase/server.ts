@@ -3,11 +3,8 @@ import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { getDbPool, queryDb } from './admin';
 
 /**
- * Runs a callback inside a PostgreSQL transaction scoped to `userId`.
- * Switches the transaction role to `authenticated` (`SET LOCAL ROLE authenticated`)
- * and sets `request.jwt.claim.sub` and `app.current_user_id` locally for the transaction
- * so PostgreSQL Row-Level Security (RLS) policies (`is_pse_member()`, `has_role()`) and
- * audit triggers are strictly enforced by Postgres over the `DATABASE_URL` connection.
+ * Runs `fn` in a transaction as the given user: sets role `authenticated` and the user id,
+ * so Postgres RLS and the audit triggers apply.
  */
 export async function withUserTransaction<TResult>(
   userId: string,
@@ -36,10 +33,7 @@ export async function withUserTransaction<TResult>(
   }
 }
 
-/**
- * Server-side database client for module repositories (`repository.ts`).
- * Connects strictly via `DATABASE_URL`.
- */
+/** Db client for module repositories (`DATABASE_URL`). */
 export async function createSupabaseServerClient() {
   const pool = getDbPool();
   return {

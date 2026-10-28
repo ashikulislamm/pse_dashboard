@@ -3,13 +3,9 @@ export type PeriodType = 'month' | 'quarter' | 'year';
 export interface PeriodInput {
   type: PeriodType;
   year: number;
-  /**
-   * 1–12 for month, 1–4 for quarter, ignored for year.
-   */
+  /** 1–12 for month, 1–4 for quarter, ignored for year. */
   index?: number;
-  /**
-   * Fiscal year start month (1 = January, 7 = July, etc.). Defaults to 1.
-   */
+  /** First month of the fiscal year (1 = January). Defaults to 1. */
   fiscalStartMonth?: number;
 }
 
@@ -47,9 +43,7 @@ function lastDayOfMonth(year: number, month1Based: number): number {
   return new Date(Date.UTC(year, month1Based, 0)).getUTCDate();
 }
 
-/**
- * Adds `monthOffset` months to `(baseYear, baseMonth1Based)` and returns the resulting `(year, month1Based)`.
- */
+/** Adds `monthOffset` months to a (year, month) pair. */
 function addMonths(
   baseYear: number,
   baseMonth1Based: number,
@@ -61,10 +55,7 @@ function addMonths(
   return { year: baseYear + yearOffset, month };
 }
 
-/**
- * Computes inclusive `{ start, end }` ISO date strings (`YYYY-MM-DD`) and human-readable label
- * for a given period (`month`, `quarter`, or `year`), respecting `fiscalStartMonth` (default 1 = Jan).
- */
+/** Inclusive start/end dates (YYYY-MM-DD) and a label for a period, respecting the fiscal start month. */
 export function periodRange(input: PeriodInput): PeriodRangeResult {
   const { type, year, index = 1, fiscalStartMonth = 1 } = input;
 
@@ -114,9 +105,7 @@ export function periodRange(input: PeriodInput): PeriodRangeResult {
   };
 }
 
-/**
- * Returns the fiscal quarter (1–4) for a given Date or YYYY-MM-DD string.
- */
+/** Fiscal quarter (1–4) of a date. */
 export function quarterOf(dateInput: Date | string, fiscalStartMonth = 1): 1 | 2 | 3 | 4 {
   const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   if (Number.isNaN(d.getTime())) {

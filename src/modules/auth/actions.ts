@@ -64,8 +64,7 @@ export async function signInAction(
   }
 
   const profile = await findProfileWithPasswordByEmail(email);
-  // Always run a password verification (against a dummy hash when the email is unknown)
-  // so response time does not reveal whether an account exists.
+  // Verify against a dummy hash when the email is unknown, so timing does not reveal which accounts exist.
   const passwordOk = await verifyPassword(
     parsed.data.password,
     profile?.password_hash ?? DUMMY_PASSWORD_HASH,

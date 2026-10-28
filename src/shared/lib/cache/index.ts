@@ -16,12 +16,8 @@ export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS];
 const DEFAULT_REVALIDATE_SECONDS = 300; // 5 minutes fallback TTL (ARCHITECURE.md §10.3)
 
 /**
- * Single wrapper around Next.js server data cache (`unstable_cache`).
- * Ensures all modules use uniform key parts, cache tags, and fallback TTL without
- * importing Next cache primitives directly.
- *
- * IMPORTANT: Callers MUST verify user authorization (`requireUser()`) BEFORE invoking
- * a cached function that uses the service-role client.
+ * Wrapper around Next's unstable_cache so modules never import cache primitives directly.
+ * Authorise with requireUser() before calling a cached function.
  */
 export function cached<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => Promise<TResult>,
@@ -35,9 +31,7 @@ export function cached<TArgs extends unknown[], TResult>(
   });
 }
 
-/**
- * Revalidates one or more server cache tags immediately after a write action.
- */
+/** Invalidates cache tags after a write. */
 export function invalidateTags(...tags: CacheTag[]): void {
   for (const tag of tags) {
     revalidateTag(tag, 'max');

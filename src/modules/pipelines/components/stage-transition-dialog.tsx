@@ -30,9 +30,7 @@ export function stageKindTone(kind: StageKind): TagTone {
   }
 }
 
-/**
- * Stage selector dropdown with built-in confirmation / reason dialog for Won, Lost, and Junk transitions.
- */
+/** Stage select that asks for confirmation or a reason on Won, Lost and Junk. */
 export function StageQuickSelect({
   pipelineId,
   dealName,

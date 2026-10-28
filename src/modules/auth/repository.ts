@@ -50,7 +50,7 @@ export async function findProfileWithPasswordByEmail(
   return rows[0] ?? null;
 }
 
-/** Failed attempts for this email within the last `windowMinutes` minutes. */
+/** Failed attempts for this email in the last `windowMinutes`. */
 export async function countRecentFailedLogins(
   email: string,
   windowMinutes: number,
@@ -67,7 +67,7 @@ export async function countRecentFailedLogins(
 
 export async function recordFailedLogin(email: string): Promise<void> {
   await queryDb(`INSERT INTO login_attempts (email) VALUES (lower($1))`, [email]);
-  // Keep the table small: drop attempts older than a day.
+  // Drop attempts older than a day to keep the table small.
   await queryDb(`DELETE FROM login_attempts WHERE attempted_at < now() - interval '1 day'`);
 }
 

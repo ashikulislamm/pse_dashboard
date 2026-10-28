@@ -47,9 +47,7 @@ function signHs256(signingInput: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(signingInput).digest('base64url');
 }
 
-/**
- * Creates a standard RFC 7519 HS256 JWT (`header.payload.signature`) stored in an HTTP-only cookie.
- */
+/** Creates the HS256 JWT stored in the session cookie. */
 export function signSessionToken(
   user: { userId: string; email: string; role: AppRole },
   ttlSeconds: number = DEFAULT_SESSION_TTL_SECONDS,
@@ -78,10 +76,7 @@ export function signSessionToken(
   return `${signingInput}.${signature}`;
 }
 
-/**
- * Verifies a standard RFC 7519 HS256 JWT (`header.payload.signature`) and checks expiration.
- * Returns the parsed `SessionPayload` or `null` if invalid/expired.
- */
+/** Verifies the JWT and its expiry. Returns the payload, or null if invalid or expired. */
 export function verifySessionToken(token: string | undefined | null): SessionPayload | null {
   if (!token) return null;
   const parts = token.split('.');
@@ -119,19 +114,14 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
   }
 }
 
-/**
- * Hashes a plaintext password using async `crypto.scrypt` (`saltHex:hashHex`).
- * Async so a login attempt never blocks the event loop.
- */
+/** Hashes a password with scrypt (`saltHex:hashHex`). Async so login does not block the event loop. */
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString('hex');
   const derivedKey = (await scrypt(password, salt, 64)).toString('hex');
   return `${salt}:${derivedKey}`;
 }
 
-/**
- * Verifies a plaintext password against a stored `saltHex:hashHex` string.
- */
+/** Checks a password against a `saltHex:hashHex` string. */
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   const [salt, keyHex] = storedHash.split(':');
   if (!salt || !keyHex) return false;
@@ -143,8 +133,5 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   return crypto.timingSafeEqual(keyBuf, derivedBuf);
 }
 
-/**
- * Valid-format hash verified against when the email does not exist, so response time
- * does not reveal which emails are registered.
- */
+/** Hash to verify against when the email is unknown, so timing does not reveal which emails exist. */
 export const DUMMY_PASSWORD_HASH = `${'00'.repeat(16)}:${'00'.repeat(64)}`;

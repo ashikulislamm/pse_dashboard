@@ -128,10 +128,7 @@ Textarea.displayName = 'Textarea';
 
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/g;
 
-/**
- * Renders plain notes text while safely turning http/https URLs (such as Google Drive links)
- * into clickable anchor tags with `target="_blank" rel="noopener noreferrer"`.
- */
+/** Plain notes text where http/https URLs become links. */
 export function AutoLinkedNotes({
   text,
   className,
@@ -238,11 +235,7 @@ export function FormSection({
 
 export type TagTone = 'neutral' | 'positive' | 'negative';
 
-/**
- * Outlined record-state tag (DESIGN.md §6 Tags).
- * Neutral 1px border, 12px text, 4px radius, no fill.
- * Only outcomes get text color: Won -> positive, Lost -> negative.
- */
+/** Outlined state tag. Only Won and Lost get a text colour. */
 export function Tag({
   tone = 'neutral',
   children,
@@ -272,9 +265,7 @@ export function Tag({
   );
 }
 
-/**
- * Static skeleton block (DESIGN.md §2 & §6: flat --surface-2, no shimmer/pulse).
- */
+/** Static skeleton block (no shimmer). */
 export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden="true" className={cn('rounded-sm bg-surface-2', className)} />;
 }
@@ -377,10 +368,7 @@ export interface ButtonLinkProps {
   'aria-label'?: string;
 }
 
-/**
- * Navigation link styled as a button. Use instead of nesting a `<Button>` inside a `<Link>`
- * (a button inside an anchor is invalid HTML and breaks keyboard and screen-reader behavior).
- */
+/** Link styled as a button. Don't nest a Button inside a Link. */
 export function ButtonLink({
   href,
   variant = 'secondary',

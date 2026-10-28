@@ -1,5 +1,5 @@
 -- supabase/seed.sql
--- Reference configuration data for PSE CRM & Performance Dashboard
+-- Reference data
 
 INSERT INTO teams (id, name)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Private Sector Engagement (PSE)')

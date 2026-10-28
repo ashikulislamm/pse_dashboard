@@ -18,9 +18,8 @@ import {
 } from './service';
 
 /*
- * Cached reads. The cache key is the function arguments (filters only, never the viewer), so every
- * authorised PSE member shares one entry. `getDashboardData` authorises the caller BEFORE touching
- * any of these; the cached functions themselves read on the owner connection.
+ * Cached reads. Keys hold filters only, never the viewer, so every PSE member shares one entry.
+ * getDashboardData authorises the caller before any of these run.
  */
 
 const loadFiscalStart = cached(

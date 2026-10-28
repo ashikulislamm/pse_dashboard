@@ -5,10 +5,7 @@ declare global {
   var __psePgPool: Pool | undefined;
 }
 
-/**
- * Returns a singleton PostgreSQL connection pool connected via `DATABASE_URL` (Supabase Cloud URI).
- * Automatically enables SSL for remote Supabase Cloud connections.
- */
+/** Shared pg pool from `DATABASE_URL`. SSL is on for remote hosts. */
 export function getDbPool(): Pool {
   if (globalThis.__psePgPool) {
     return globalThis.__psePgPool;
@@ -51,10 +48,7 @@ export function getDbPool(): Pool {
   return pool;
 }
 
-/**
- * Executes a parameterized SQL query directly against the PostgreSQL pool.
- * Used by server-only cached aggregate queries AFTER caller authorization (`requireUser()`).
- */
+/** Runs a parameterised query on the pool. Authorise with requireUser() first. */
 export async function queryDb<TRow extends QueryResultRow = QueryResultRow>(
   sql: string,
   params: unknown[] = [],
@@ -63,10 +57,7 @@ export async function queryDb<TRow extends QueryResultRow = QueryResultRow>(
   return pool.query<TRow>(sql, params);
 }
 
-/**
- * Server-only admin database client wrapper.
- * Used inside cached read functions and migration/seed scripts.
- */
+/** Owner-level db client for cached reads and scripts. Server only. */
 export function createSupabaseAdminClient() {
   const pool = getDbPool();
   return {

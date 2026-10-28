@@ -3,9 +3,7 @@ import { periodRange } from '@/shared/lib/periods';
 import type { ActivityClass, ActivityType, MeetingStatus, StageKind } from '@/types/database';
 import type { DashboardFilterInput, DashboardLens, DashboardPeriodType } from './schema';
 
-// ---------------------------------------------------------------------------
 // Filters and period window
-// ---------------------------------------------------------------------------
 
 export interface ResolvedDashboardFilters {
   period: DashboardPeriodType;
@@ -92,9 +90,7 @@ export function periodWindow(
   };
 }
 
-// ---------------------------------------------------------------------------
 // Money helpers
-// ---------------------------------------------------------------------------
 
 function toCents(value: number): number {
   return Math.round(roundCurrency(value) * 100);
@@ -125,9 +121,7 @@ export function computeAttainment(target: number, achieved: number): Attainment 
   };
 }
 
-// ---------------------------------------------------------------------------
 // Raw SQL rows (already converted to numbers by the repository)
-// ---------------------------------------------------------------------------
 
 export interface AchievementRow {
   user_id: string;
@@ -202,9 +196,7 @@ export interface NameLookup {
   verticals: Record<string, string>;
 }
 
-// ---------------------------------------------------------------------------
 // Monetary lens
-// ---------------------------------------------------------------------------
 
 export interface AttainmentRowView extends Attainment {
   id: string;
@@ -324,9 +316,7 @@ export function buildMonetaryDashboard(
   };
 }
 
-// ---------------------------------------------------------------------------
 // Non-monetary lens
-// ---------------------------------------------------------------------------
 
 export const ACTIVITY_CLASS_LABELS: Record<ActivityClass, string> = {
   stewardship: 'Stewardship',
@@ -407,9 +397,7 @@ export function buildNonMonetaryDashboard(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Drill-down links (only where the target list uses the same date basis as the KPI)
-// ---------------------------------------------------------------------------
+// Drill-down links (only where the list uses the same date basis as the KPI)
 
 function listHref(path: string, params: Record<string, string | null | undefined>): string {
   const search = new URLSearchParams();

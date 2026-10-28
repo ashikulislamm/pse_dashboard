@@ -1,5 +1,5 @@
 -- 006_audit_rls.sql
--- Audit log, identity helpers, and PostgreSQL Row-Level Security (RLS) policies
+-- Audit log, identity helpers and row-level security (RLS) policies
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id bigserial PRIMARY KEY,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_table_row ON audit_log(table_name, row_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_at ON audit_log(at DESC);
 
--- Helper: resolves current user UUID from transaction context (`app.current_user_id` or `request.jwt.claim.sub`)
+-- Current user id from the transaction (app.current_user_id or request.jwt.claim.sub)
 CREATE OR REPLACE FUNCTION current_app_user_id()
 RETURNS uuid
 LANGUAGE sql
@@ -26,7 +26,7 @@ AS $$
   );
 $$;
 
--- Helper: true iff the current transaction user is an active PSE member
+-- True if the current user is an active PSE member
 CREATE OR REPLACE FUNCTION is_pse_member()
 RETURNS boolean
 LANGUAGE sql
@@ -43,7 +43,7 @@ AS $$
   );
 $$;
 
--- Helper: true iff the current transaction user is an active PSE member holding one of the specified roles
+-- True if the current user is an active PSE member with one of the given roles
 CREATE OR REPLACE FUNCTION has_role(r app_role[])
 RETURNS boolean
 LANGUAGE sql
@@ -61,7 +61,7 @@ AS $$
   );
 $$;
 
--- Generic audit trigger function
+-- Generic audit trigger
 CREATE OR REPLACE FUNCTION fn_audit_trigger()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -110,8 +110,8 @@ CREATE TRIGGER trg_audit_target_plans
 AFTER INSERT OR UPDATE OR DELETE ON target_plans
 FOR EACH ROW EXECUTE FUNCTION fn_audit_trigger();
 
--- Ensure role `authenticated` exists and has privileges on public schema tables so
--- `SET LOCAL ROLE authenticated` inside `withUserTransaction` enforces RLS strictly.
+-- Make sure role authenticated exists and can use the public tables, so that
+-- SET LOCAL ROLE authenticated in withUserTransaction enforces RLS.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
@@ -124,7 +124,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authentic
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
 
--- Enable and force RLS across all business and reference tables
+-- Enable and force RLS on all business and reference tables
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;

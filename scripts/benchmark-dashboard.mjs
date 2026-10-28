@@ -38,10 +38,7 @@ function summarizeTimings(samples) {
   };
 }
 
-/**
- * Minimal tagged server cache harness mirroring `src/shared/lib/cache/index.ts`
- * (`cached(fn, keyParts, tags, revalidate)` + `invalidateTags(...tags)`) for standalone Node benchmarking.
- */
+/** Small stand-in for src/shared/lib/cache so the benchmark runs in plain Node. */
 function createTaggedCacheHarness() {
   const store = new Map();
   return {
@@ -80,7 +77,7 @@ async function runBenchmark() {
     console.log('=== PSE Dashboard Phase 8 Benchmark (10k Contacts / 5k Pipelines / 20k Activities) ===\n');
     await client.query('BEGIN');
 
-    // Bypass per-row audit/history triggers during bulk synthetic data generation
+    // Skip the audit/history triggers while loading bulk data
     await client.query(`SET LOCAL session_replication_role = 'replica'`);
 
     const seedStart = performance.now();
@@ -276,7 +273,7 @@ async function runBenchmark() {
       counts,
     );
 
-    // 7. Capture EXPLAIN (ANALYZE, BUFFERS) plans for key functions
+    // 7. EXPLAIN ANALYZE the key functions
     const start = '2026-10-01';
     const end = '2026-12-31';
 
@@ -327,7 +324,7 @@ async function runBenchmark() {
       }
     }
 
-    // 8. Define the exact consolidated SQL queries used by src/modules/dashboard/repository.ts
+    // 8. Same SQL as src/modules/dashboard/repository.ts
     const fetchMonetaryOnClient = async (wStart, wEnd, member, vertical, year, quarter, month) => {
       const res = await client.query(
         `SELECT

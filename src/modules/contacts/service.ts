@@ -21,10 +21,7 @@ export interface PreparedContactPayload {
   channels: NormalizedChannel[];
 }
 
-/**
- * Normalizes and deduplicates the channel array submitted for a single contact.
- * Ensures exactly one channel is marked `is_primary = true`.
- */
+/** Normalises and dedupes channels so exactly one is primary. */
 export function normalizeContactChannels(
   rawChannels: ContactChannelInput[],
 ): NormalizedChannel[] {
@@ -87,11 +84,7 @@ export function normalizeContactChannels(
   return normalized;
 }
 
-/**
- * Prepares and sanitizes a `ContactFormInput` according to Individual vs. Company rules:
- * - Individual contacts may have `organization_id` (nullable) and `designation`, while `website` and `industry` are cleared.
- * - Company contacts may have `website` and `industry`, while `organization_id` and `designation` are cleared.
- */
+/** Cleans contact input. Individuals keep organization and designation; companies keep website and industry. */
 export function prepareContactPayload(input: ContactFormInput): PreparedContactPayload {
   const channels = normalizeContactChannels(input.channels);
   const cleanStr = (val?: string | null) => {
@@ -126,10 +119,7 @@ export function prepareContactPayload(input: ContactFormInput): PreparedContactP
   };
 }
 
-/**
- * Checks whether an authenticated PSE user is allowed to edit a contact record.
- * Writes are allowed for the record's owner (`owner_id`) or `admin`.
- */
+/** Only the owner or an admin can edit a contact. */
 export function canEditContact(
   actor: { id: string; role: AppRole },
   contact: { owner_id: string | null },

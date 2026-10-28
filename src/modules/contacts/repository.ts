@@ -334,7 +334,7 @@ export async function updateContactRecord(
       throw new Error('Contact not found or you do not have permission to edit it.');
     }
 
-    // Replace channels inside the deferred constraint transaction
+    // Replace the channels in the same transaction (the constraint is deferred)
     await client.query(`DELETE FROM contact_channels WHERE contact_id = $1`, [contactId]);
 
     for (const ch of payload.channels) {

@@ -18,11 +18,7 @@ export class AuthorizationError extends Error {
   }
 }
 
-/**
- * Verifies that the current request has a valid signed session cookie (`pse_session`)
- * AND belongs to an active PSE team member in PostgreSQL (`is_pse = true` and `is_active = true`).
- * Redirects unauthenticated users to `/login` and non-PSE users to `/no-access`.
- */
+/** Needs a valid session cookie and an active PSE user. Redirects to /login or /no-access otherwise. */
 export async function requireUser(): Promise<AuthenticatedProfile> {
   const cookieStore = await cookies();
   const rawToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -52,10 +48,7 @@ export async function requireUser(): Promise<AuthenticatedProfile> {
   };
 }
 
-/**
- * Verifies that the authenticated PSE user holds one of the allowed `roles`.
- * Throws `AuthorizationError` if the user's role is not in `allowedRoles`.
- */
+/** Throws AuthorizationError unless the user has one of the allowed roles. */
 export async function requireRole(...allowedRoles: AppRole[]): Promise<AuthenticatedProfile> {
   const profile = await requireUser();
 

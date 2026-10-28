@@ -23,11 +23,7 @@ export interface KpiTileProps {
   className?: string;
 }
 
-/**
- * KPI tile (DESIGN.md §8):
- * Label (13px muted), Value (28px 600 tabular), one line of context in muted text.
- * No icons, no sparkline, no fake trend arrows.
- */
+/** KPI tile: label, value and one line of context. No icons or trend arrows (DESIGN.md §8). */
 export function KpiTile({ label, value, context, href, className }: KpiTileProps) {
   const valueNode = (
     <div
@@ -59,11 +55,7 @@ export interface TargetBarProps {
   className?: string;
 }
 
-/**
- * Horizontal target vs achievement bar (DESIGN.md §10):
- * Achieved bar over a thin target marker line, with exact percentage printed as text.
- * Over-achievement (>100%) is never capped in text and extends past the target marker.
- */
+/** Target vs achievement bar. Over 100% is shown as is and extends past the target marker. */
 export function TargetBar({
   label,
   achieved,

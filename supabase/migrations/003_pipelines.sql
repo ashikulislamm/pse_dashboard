@@ -58,7 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_pipelines_category ON pipelines(category_id);
 CREATE INDEX IF NOT EXISTS idx_pipeline_receipts_received_on ON pipeline_receipts(received_on);
 CREATE INDEX IF NOT EXISTS idx_pipeline_receipts_pipeline ON pipeline_receipts(pipeline_id);
 
--- BEFORE trigger on pipelines: enforce lost_reason when moving to 'lost' kind, and set won_at when moving to 'won' kind
+-- Before trigger: Lost needs lost_reason; moving to Won sets won_at
 CREATE OR REPLACE FUNCTION fn_pipeline_stage_before_write()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -87,7 +87,7 @@ BEFORE INSERT OR UPDATE OF stage_id, lost_reason ON pipelines
 FOR EACH ROW
 EXECUTE FUNCTION fn_pipeline_stage_before_write();
 
--- AFTER trigger on pipelines: record initial stage and every subsequent stage change in pipeline_stage_history
+-- After trigger: writes the first stage and every stage change to pipeline_stage_history
 CREATE OR REPLACE FUNCTION fn_pipeline_stage_history_log()
 RETURNS trigger
 LANGUAGE plpgsql

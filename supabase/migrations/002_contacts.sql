@@ -1,5 +1,5 @@
 -- 002_contacts.sql
--- Contacts, channels, deduplication on normalized email & phone, and deferred >=1 channel constraint
+-- Contacts, channels, dedupe on normalised email and phone, and the at-least-one-channel rule
 
 CREATE TABLE IF NOT EXISTS contacts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_contacts_owner_created ON contacts(owner_id, crea
 CREATE INDEX IF NOT EXISTS idx_contacts_name_fts ON contacts USING gin (to_tsvector('simple', name));
 CREATE INDEX IF NOT EXISTS idx_contact_channels_contact ON contact_channels(contact_id);
 
--- Deferred constraint trigger function: every existing contact must have >= 1 channel at transaction commit
+-- Deferred trigger: every contact must have at least one channel at commit
 CREATE OR REPLACE FUNCTION enforce_contact_channel()
 RETURNS trigger
 LANGUAGE plpgsql
