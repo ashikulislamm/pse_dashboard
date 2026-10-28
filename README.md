@@ -6,9 +6,6 @@ CRM and performance dashboard for the Private Sector Engagement (PSE) team. It t
 Contact ──► Pipeline (money only) ──► Meeting ──► Activity
 ```
 
-- **Repository:** https://github.com/ashikulislamm/pse_dashboard
-- **Live app:** add the Vercel URL here after deployment.
-
 ## Features
 
 | Area | What it does |
@@ -90,8 +87,6 @@ Generate a secret for `AUTH_SECRET` with `openssl rand -base64 48`.
 | `DATABASE_POOL_MAX` | no | Max connections per server instance (default 3) |
 | `NEXT_PUBLIC_APP_URL` | no | Public app URL |
 
-`DATABASE_URL` and `AUTH_SECRET` are server-only. Never prefix them with `NEXT_PUBLIC_` and never commit `.env`.
-
 ## Demo accounts
 
 All demo accounts use the password `Password123!`. The login page can fill them in with one click.
@@ -126,24 +121,7 @@ Before merging, `lint`, `lint:design`, `typecheck`, `test`, `db:test` and `build
 
 `db:push`, `db:seed` and `db:test` run against the database in `DATABASE_URL`. Migrations are forward-only: add a new numbered file in `supabase/migrations/` (next is `011`) and never edit an applied one.
 
-## Deploying
-
-1. Push to GitHub and import the repo in Vercel (`main` is deployed).
-2. Set `DATABASE_URL` and `AUTH_SECRET` for Production and Preview.
-3. Run `npm run db:push` and `npm run db:seed` against the database.
-4. Smoke test: logged-out redirect to `/login`, each role, dashboard, locked 2026 targets.
-
-Full runbook: [docs/05_Technical_Docs.md](docs/05_Technical_Docs.md).
-
-## Scope
-
-**Built:** auth and roles, contacts, pipelines with receipts, meetings, activities, targets wizard and lock, two-lens dashboard, tagged caching.
-
-**Designed, not built:** Odoo CSV importer, admin editing of reference tables (use SQL), drag-and-drop pipeline board, count targets, follow-up KPI, target hierarchy.
-
-**Out of scope by design:** Gmail sync, file uploads (paste Google Drive links in notes), external autofill, a standalone Events module.
-
-## Documentation
+## Documentations
 
 | Document | Content |
 |---|---|
