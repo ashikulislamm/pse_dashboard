@@ -567,100 +567,98 @@ export async function getPipelineDetail(
     const row = pipelineRes.rows[0];
     if (!row) return null;
 
-    const [historyRes, receiptsRes, meetingsRes, activitiesRes] = await Promise.all([
-      client.query<{
-        id: string;
-        pipeline_id: string;
-        from_stage: string | null;
-        from_stage_name: string | null;
-        to_stage: string;
-        to_stage_name: string;
-        to_stage_kind: StageKind;
-        changed_by: string | null;
-        changed_by_name: string | null;
-        changed_at: string;
-      }>(
-        `SELECT
-           h.id::text,
-           h.pipeline_id,
-           h.from_stage,
-           fs.name AS from_stage_name,
-           h.to_stage,
-           ts.name AS to_stage_name,
-           ts.kind AS to_stage_kind,
-           h.changed_by,
-           pr.full_name AS changed_by_name,
-           h.changed_at::text
-         FROM pipeline_stage_history h
-         LEFT JOIN pipeline_stages fs ON fs.id = h.from_stage
-         JOIN pipeline_stages ts ON ts.id = h.to_stage
-         LEFT JOIN profiles pr ON pr.id = h.changed_by
-         WHERE h.pipeline_id = $1
-         ORDER BY h.changed_at DESC, h.id DESC`,
-        [pipelineId],
-      ),
-      client.query<{
-        id: string;
-        pipeline_id: string;
-        amount: string;
-        currency: string;
-        amount_base: string;
-        received_on: string;
-        note: string | null;
-        created_by: string | null;
-        created_by_name: string | null;
-        created_at: string;
-      }>(
-        `SELECT
-           r.id,
-           r.pipeline_id,
-           r.amount::text,
-           r.currency,
-           r.amount_base::text,
-           r.received_on::text,
-           r.note,
-           r.created_by,
-           pr.full_name AS created_by_name,
-           r.created_at::text
-         FROM pipeline_receipts r
-         LEFT JOIN profiles pr ON pr.id = r.created_by
-         WHERE r.pipeline_id = $1
-         ORDER BY r.received_on DESC, r.created_at DESC`,
-        [pipelineId],
-      ),
-      client.query<PipelineRelatedMeeting>(
-        `SELECT
-           m.id,
-           m.scheduled_at::text,
-           m.status,
-           m.description,
-           pr.full_name AS owner_name,
-           c.name AS contact_name
-         FROM meetings m
-         JOIN profiles pr ON pr.id = m.owner_id
-         LEFT JOIN contacts c ON c.id = m.contact_id
-         WHERE m.pipeline_id = $1
-         ORDER BY m.scheduled_at DESC`,
-        [pipelineId],
-      ),
-      client.query<PipelineRelatedActivity>(
-        `SELECT
-           a.id,
-           a.title,
-           a.type,
-           a.class,
-           a.status,
-           a.occurred_at::text,
-           a.due_at::text,
-           pr.full_name AS owner_name,
-           a.remaining_work
-         FROM activities a
-         JOIN profiles pr ON pr.id = a.owner_id
-         WHERE a.pipeline_id = $1
-         ORDER BY COALESCE(a.occurred_at, a.due_at, a.created_at) DESC`,
-        [pipelineId],
-      ),
-    ]);
+    const historyRes = await client.query<{
+      id: string;
+      pipeline_id: string;
+      from_stage: string | null;
+      from_stage_name: string | null;
+      to_stage: string;
+      to_stage_name: string;
+      to_stage_kind: StageKind;
+      changed_by: string | null;
+      changed_by_name: string | null;
+      changed_at: string;
+    }>(
+      `SELECT
+         h.id::text,
+         h.pipeline_id,
+         h.from_stage,
+         fs.name AS from_stage_name,
+         h.to_stage,
+         ts.name AS to_stage_name,
+         ts.kind AS to_stage_kind,
+         h.changed_by,
+         pr.full_name AS changed_by_name,
+         h.changed_at::text
+       FROM pipeline_stage_history h
+       LEFT JOIN pipeline_stages fs ON fs.id = h.from_stage
+       JOIN pipeline_stages ts ON ts.id = h.to_stage
+       LEFT JOIN profiles pr ON pr.id = h.changed_by
+       WHERE h.pipeline_id = $1
+       ORDER BY h.changed_at DESC, h.id DESC`,
+      [pipelineId],
+    );
+    const receiptsRes = await client.query<{
+      id: string;
+      pipeline_id: string;
+      amount: string;
+      currency: string;
+      amount_base: string;
+      received_on: string;
+      note: string | null;
+      created_by: string | null;
+      created_by_name: string | null;
+      created_at: string;
+    }>(
+      `SELECT
+         r.id,
+         r.pipeline_id,
+         r.amount::text,
+         r.currency,
+         r.amount_base::text,
+         r.received_on::text,
+         r.note,
+         r.created_by,
+         pr.full_name AS created_by_name,
+         r.created_at::text
+       FROM pipeline_receipts r
+       LEFT JOIN profiles pr ON pr.id = r.created_by
+       WHERE r.pipeline_id = $1
+       ORDER BY r.received_on DESC, r.created_at DESC`,
+      [pipelineId],
+    );
+    const meetingsRes = await client.query<PipelineRelatedMeeting>(
+      `SELECT
+         m.id,
+         m.scheduled_at::text,
+         m.status,
+         m.description,
+         pr.full_name AS owner_name,
+         c.name AS contact_name
+       FROM meetings m
+       JOIN profiles pr ON pr.id = m.owner_id
+       LEFT JOIN contacts c ON c.id = m.contact_id
+       WHERE m.pipeline_id = $1
+       ORDER BY m.scheduled_at DESC`,
+      [pipelineId],
+    );
+    const activitiesRes = await client.query<PipelineRelatedActivity>(
+      `SELECT
+         a.id,
+         a.title,
+         a.type,
+         a.class,
+         a.status,
+         a.occurred_at::text,
+         a.due_at::text,
+         pr.full_name AS owner_name,
+         a.remaining_work
+       FROM activities a
+       JOIN profiles pr ON pr.id = a.owner_id
+       WHERE a.pipeline_id = $1
+       ORDER BY COALESCE(a.occurred_at, a.due_at, a.created_at) DESC`,
+      [pipelineId],
+    );
 
     return {
       pipeline: {

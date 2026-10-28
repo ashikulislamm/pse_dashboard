@@ -1,6 +1,6 @@
 # PSE Dashboard — Project Memory & Progress Log
 
-Last updated: 2026-10-27 (after Phases 0–8 plus the security and infrastructure hardening pass below)
+Last updated: 2026-10-27 (after Phases 0–9 plus the security and infrastructure hardening pass below)
 
 ---
 
@@ -34,8 +34,8 @@ Last updated: 2026-10-27 (after Phases 0–8 plus the security and infrastructur
 | **P6** | Targets wizard & lock | **Completed** | Annual → Q1–Q4 → Members → Verticals (%) → Review wizard (drafts saved server-side on every step), largest-remainder rounding, publish = lock (DB triggers + `publish_target_plan`), read-only published view for everyone, drafts visible only to admin/target_manager. |
 | **P7** | Two-lens Dashboard & SQL read functions (`009`) | **Completed** | Monetary + Non-monetary lenses, Monthly (pro-rata) / Quarterly / Annual, member and vertical filters in the URL, tagged `cached()` reads. Cache benchmarking and `docs/CACHING.md` are still P8. |
 | **P8** | Tagged server caching & performance benchmark | **Completed** | `010_dashboard_perf_indexes.sql`, single-round-trip lens queries, cached reference reads (`dashboard`, `pipelines`, `auth`), `cache.test.ts`, `scripts/benchmark-dashboard.mjs` (`npm run db:bench`), and `docs/CACHING.md` (warm cache p95 = `0.04 ms` on 10k contacts / 5k pipelines / 20k activities). |
-| **P9** | Testing & hardening | Pending | Unit, DB invariant tests, Playwright E2E happy path, security & a11y checks. |
-| **P10** | Deployment & documentation | Pending | Prod Supabase + Vercel deploy, `PSE_Architecture.pdf`, Google Drive pack, `README.md`. |
+| **P9** | Testing & hardening | **Completed** | 87 Vitest unit tests (12 files), 17 PostgreSQL invariant/RLS/trigger/function tests (`npm run db:test`), Playwright E2E happy-path & security suite (`npm run test:e2e`), client bundle security audit (`npm run check:security`), P1 nested `<form>` fix in `ContactForm`, `pg@9.0` deprecation fix, and `docs/KNOWN_LIMITATIONS.md`. |
+ progress | Docs consolidated into six files in docs/ (01, 02, 04, 05, 07, 08). Remaining: prod deploy, PSE_Architecture.pdf, Google Drive upload, README live URL. |
 | **P11** | Final submission | Pending | Pre-submission checklist verification. |
 
 ---
@@ -191,3 +191,26 @@ npm run build
 - **Theme flash / hydration:** a small pre-paint script in `app/layout.tsx` applies the saved theme; `AppShell` reads the class after mount instead of reading localStorage during render.
 - **KPI tiles** use a smaller value size on narrow screens and wrap long amounts.
 - Contact detail action buttons are now short ("New pipeline", "Schedule meeting", "Log activity") instead of embedding the contact name.
+
+
+## 10. Phase 9 — Testing & Hardening (2026-10-27)
+
+- **Unit Test Suite (`vitest`, `npm test` — 87 tests across 12 files):**
+  - Covers phone E.164 normalization, email lowercase normalization, `allocateByPercent` largest-remainder rounding, `periodRange` / `fiscalPositionOf`, `defaultActivityClassForType`, FX base calculation (`computeBase`), target wizard reconciliation (`validatePlan`, `summarizePlan`, `buildPlanLines`), dashboard monetary & non-monetary view assembly, scrypt password hashing & HS256 JWT sessions, RBAC guards, and tagged server caching (`cached()` + `invalidateTags()`).
+- **Database Invariant, Trigger, Function & RLS Test Suite (`scripts/db-tests.mjs`, `npm run db:test` — 17 suites):**
+  - Added suites 13–17 on top of suites 1–12:
+    - Suite 13: Company pipeline without `poc_contact_id` is rejected by `pipelines_company_poc_check`.
+    - Suite 14: Column-level `SELECT` privilege revocation blocks `authenticated` from reading `profiles.password_hash`.
+    - Suite 15: Member RLS owner guard allows reading all PSE pipelines (`is_pse_member()`) while rejecting updates to another member's pipeline (`owner_id = current_app_user_id() OR has_role(ARRAY['admin'])`).
+    - Suite 16: Pipeline stage transition to `Won` automatically sets `won_at`, appends `pipeline_stage_history`, and records an `audit_log` row.
+    - Suite 17: Non-monetary SQL read functions (`fn_activity_summary`, `fn_contacts_engaged`) exclude `cancelled` activities and deduplicate distinct contacts across meetings and activities.
+- **Playwright E2E Happy-Path & Security Suite (`playwright.config.ts`, `e2e/happy-path.spec.ts`, `npm run test:e2e`):**
+  - Verifies non-PSE user (`external@otherdept.org`) restriction to `/no-access` with zero PSE data exposed.
+  - Verifies Member (`rahim@pse.org`) flow: duplicate email detection on `/contacts/new` -> unique contact creation -> inline company creation via `<ContactPicker />` inside `/pipelines/new` -> deal creation -> stage transition to `Won` -> recording a realized receipt (`pipeline_receipts`) -> immediate `/dashboard` cache invalidation & Non-monetary lens -> mobile (`375px`) slide-in navigation drawer.
+  - Verifies Target Manager (`safina@pse.org`) flow: completing all 5 steps of the Targets Wizard (`Annual -> Quarters -> Members -> Verticals -> Review`), publishing & locking, and confirming the read-only `Published` state.
+- **Defects Caught & Fixed During Phase 9:**
+  - **P1 Nested `<form>` Bug in `src/modules/contacts/components/contact-form.tsx`:** Rendering `ContactForm` with `compact={true}` inside `<ContactPicker />` (which sits inside `<PipelineForm />`, `<MeetingForm />`, or `<ActivityForm />`) previously rendered a nested `<form>`, causing the browser to submit the outer form when clicking `"Save contact"`. Fixed by rendering a `<div>` container and `type="button"` when `compact={true}`.
+  - **`pg@9.0` Concurrent `client.query` Deprecation Warning:** Replaced concurrent `Promise.all([client.query(...), ...])` calls on single transaction `PoolClient`s with sequential `await client.query(...)` calls in `src/modules/contacts/repository.ts` and `src/modules/pipelines/repository.ts`.
+- **Security Audit & Known Limitations:**
+  - Added `scripts/check-security.mjs` (`npm run check:security`) verifying zero `DATABASE_URL` / `AUTH_SECRET` / Postgres URI leaks in `.next/static` and verifying `requireUser()` / `requireRole()` gating on every `cached()` module query file.
+  - Documented intentional scope cuts and domain trade-offs in `docs/KNOWN_LIMITATIONS.md`.

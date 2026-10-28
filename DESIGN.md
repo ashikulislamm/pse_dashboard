@@ -1,6 +1,6 @@
 # PSE Dashboard — Design System
 
-A minimal, clean, professional interface for a working CRM. It should feel like a precise tool: calm, dense where data needs it, quiet everywhere else. Implementation target: **Tailwind CSS + shadcn/ui** on Next.js. See [ARCHITECURE.md](ARCHITECURE.md) for structure and [PHASES.md](PHASES.md) for when each piece is built.
+A minimal, clean, professional interface for a working CRM. It should feel like a precise tool: calm, dense where data needs it, quiet everywhere else. Implementation target: **Tailwind CSS + shadcn/ui** on Next.js. See [docs/02_Architecture_and_Database.md](docs/02_Architecture_and_Database.md) for structure and [docs/08_Project_Management.md](docs/08_Project_Management.md) for when each piece is built.
 
 ---
 

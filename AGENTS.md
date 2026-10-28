@@ -2,7 +2,7 @@
 
 CRM and performance dashboard for the Private Sector Engagement (PSE) team: Contacts → Pipelines (money only) → Meetings → Activities, plus Targets and a two-lens Dashboard (monetary / non-monetary). Modular monolith on Next.js App Router + Supabase Postgres, deployed on Vercel.
 
-Deadline: Wed 28 Oct 2026, 11:59 PM (submit by 8 PM). Progress and phase status live in [MEMORY.md](MEMORY.md); the build order is in [PHASES.md](PHASES.md).
+Deadline: Wed 28 Oct 2026, 11:59 PM (submit by 8 PM). Progress and phase status live in [MEMORY.md](MEMORY.md); the build order and phase record are in [docs/08_Project_Management.md](docs/08_Project_Management.md).
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -19,12 +19,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | File | Why |
 |---|---|
 | [MEMORY.md](MEMORY.md) | Phase tracker, what exists, demo credentials, hardening notes. Update it when a phase finishes. |
-| [PHASES.md](PHASES.md) | Per-phase business rules and acceptance criteria (P9 Testing & E2E verification is next). |
-| [ARCHITECURE.md](ARCHITECURE.md) | Architecture, invariants, cache-tag table (§10.3). The filename is misspelled on purpose; don't rename it. |
+| [docs/08_Project_Management.md](docs/08_Project_Management.md) | Phase plan, per-phase scope and acceptance criteria (P10 Deployment & documentation is current). |
+| [docs/02_Architecture_and_Database.md](docs/02_Architecture_and_Database.md) | Architecture, database, invariants. The cache-tag table is in [docs/05_Technical_Docs.md](docs/05_Technical_Docs.md) section 6. |
 | [DESIGN.md](DESIGN.md) | Design system. Hard bans are enforced in CI. |
-| [docs/ASSUMPTIONS.md](docs/ASSUMPTIONS.md) | Decisions taken where requirements were open. |
+| [docs/01_Requirement_Analysis.md](docs/01_Requirement_Analysis.md) | Requirements and the decisions taken where they were open (section 6). |
 
-Where documents conflict, the later "major requirement changes" win (see IMPLEMENTATION_PLAN.md Part A).
+Where documents conflict, the later "major requirement changes" win (see docs/01_Requirement_Analysis.md section 2).
 
 ## Commands (npm only)
 
@@ -89,7 +89,7 @@ src/types          database.ts (hand-maintained to match migrations)
 
 ## Caching
 
-Use `cached()` and `invalidateTags()` from `@/shared/lib/cache`; never import Next cache primitives elsewhere. Cache keys contain filters, never the viewer's identity, and authorisation happens before the cached call. Tags and the write→tag table are in ARCHITECURE.md §10.3.
+Use `cached()` and `invalidateTags()` from `@/shared/lib/cache`; never import Next cache primitives elsewhere. Cache keys contain filters, never the viewer's identity, and authorisation happens before the cached call. Tags and the write-to-tag table are in docs/05_Technical_Docs.md section 6.
 
 ## Git and safety
 

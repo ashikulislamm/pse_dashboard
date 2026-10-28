@@ -185,8 +185,7 @@ export function ContactForm({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitContact = async () => {
     setErrorMessage(null);
     setDuplicateMatch(null);
     setSubmitting(true);
@@ -226,6 +225,11 @@ export function ContactForm({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitContact();
+  };
+
   const comboboxCompanyOptions = React.useMemo(
     () => [
       { value: '', label: 'None (independent individual)' },
@@ -238,8 +242,13 @@ export function ContactForm({
     [companies],
   );
 
+  const FormContainer = compact ? 'div' : 'form';
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <FormContainer
+      onSubmit={compact ? undefined : handleSubmit}
+      className="flex flex-col gap-5"
+    >
       {errorMessage && (
         <div
           role="alert"
@@ -537,10 +546,14 @@ export function ContactForm({
         >
           Cancel
         </Button>
-        <Button type="submit" loading={submitting}>
+        <Button
+          type={compact ? 'button' : 'submit'}
+          onClick={compact ? () => void submitContact() : undefined}
+          loading={submitting}
+        >
           Save contact
         </Button>
       </div>
-    </form>
+    </FormContainer>
   );
 }

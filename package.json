@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "node --env-file=.env ./node_modules/@playwright/test/cli.js test",
+    "check:security": "node --env-file=.env scripts/check-security.mjs",
     "db:push": "node --env-file=.env scripts/db-push.mjs",
     "db:seed": "node --env-file=.env scripts/seed-demo.mjs",
     "db:test": "node --env-file=.env scripts/db-tests.mjs",

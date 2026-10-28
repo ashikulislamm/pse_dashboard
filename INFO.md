@@ -1,3 +1,66 @@
+# PSE Dashboard — Scope Statement & Assumptions (Phase 0)
+
+See [ASSUMPTIONS.md](./ASSUMPTIONS.md) for the complete, canonical scope statement, in/out-of-scope boundaries, and locked ambiguity defaults.
+
+## Quick Summary of Out-of-Scope Items
+- **No Gmail / Email Integration:** Emails are logged manually via the Activities module (`type = email`).
+- **No File Uploads / Storage Bucket:** Google Drive links are pasted in notes fields and rendered as safe external links (`rel="noopener noreferrer"`).
+- **No External Autofill:** Company and contact lookup suggestions use internal PSE records only.
+- **No Standalone Events Module:** Events, campaigns, and visits are recorded as Activities (`event`, `campaign`, `visit`).
+- **No Follow-up Rate KPI:** Parked pending PSE definition of formula, trigger, and time window.
+
+# PSE Dashboard — Scope & Assumptions
+
+This document locks the scope, architectural assumptions, and ambiguity defaults for the Private Sector Engagement (PSE) CRM & Performance Dashboard build.
+
+---
+
+## 1. Scope Statement
+
+### In Scope (Built)
+- **Authentication & RBAC:** Postgres-backed email + password (`scrypt`) with HS256 JWT session cookies, session proxy, PSE-only visibility (`is_pse_member()`), and role-based write access (`admin`, `target_manager`, `member`) enforced in both the server layer and PostgreSQL Row-Level Security (RLS).
+- **Contacts Module:** Individual and Company contacts, structured organization and designation fields, multi-channel (`email` / `phone`) repeater with mandatory `>= 1` channel constraint, normalized deduplication on both email (lowercase) and phone (E.164), relationship intelligence notes, related records timeline, and reusable inline `ContactPicker`.
+- **Pipelines & Receipts Module:** Money-only opportunities (`expected_amount > 0`), Cash and valued In-kind contributions (with mandatory valuation note), Individual and Company party modes (with Point of Contact and Secondary Contact), stage progression with `pipeline_stage_history`, Won/Lost confirmation (with mandatory `lost_reason`), multi-currency conversion to base currency (`BDT`), and `pipeline_receipts` tracking realized funds.
+- **Meetings Module:** Structured meeting records linked to a Contact or Pipeline (`CHECK` constraint), read-only organization/designation derived from the linked contact, `scheduled` / `done` status tracking, and follow-up activity shortcut.
+- **Activities Module:** Non-monetary work tracker covering all 11 activity types (`task`, `email`, `call`, `meeting`, `event`, `campaign`, `proposal`, `visit`, `servicing`, `prospect_engagement`, `general`) and 3 reporting classes (`stewardship`, `prospect_engagement`, `independent`). Never affects monetary figures.
+- **Targets Module:** Step-by-step setup wizard (`Annual → Q1–Q4 → Team Members → Vertical % → Review & Publish/Lock`) using largest-remainder rounding so allocations reconcile exactly. Permanently locked after publish via database triggers; writable only by `target_manager` and `admin`.
+- **Two-Lens Dashboard:**
+  - **Monetary Lens:** Target vs. Achievement, attainment %, unachieved / over-achieved, Won-unrealized, breakdowns by member, vertical, and pipeline stage kind (`open`, `won`, `lost`, `junk`), cash vs. valued in-kind split, and monthly trend.
+  - **Non-Monetary Lens:** Meeting counts and completion rate, activity counts by type and class, visits/events/campaigns, distinct contacts engaged, and per-member workload.
+- **Tagged Server Caching:** Next.js server data cache with granular tag invalidation (`dashboard`, `pipelines`, `receipts`, `meetings`, `activities`, `targets`, `config`) on every write action, plus TanStack Query client caching.
+
+### Designed as Extension Points (Documented, Not Built in Initial Cut)
+- **Odoo CSV Importer UI:** Schema (`import_jobs`) and deduplication service rules are established; bulk CSV mapping UI is deferred until PSE supplies final Odoo export field mappings.
+- **Admin Configuration CRUD UI:** Reference tables (`pipeline_stages`, `contribution_categories`, `verticals`, `category_vertical_map`, `currencies`, `fx_rates`, `settings`) are database-driven, seeded, and editable via SQL without code changes.
+- **Kanban Drag-and-Drop:** Pipeline board view groups deals by stage and allows stage changes via an accessible stage dropdown; drag-and-drop is deferred.
+- **Non-Monetary Count Targets & Follow-up Rate KPI:** Deferred pending PSE formula approval.
+- **Hierarchical Target Approval Workflow:** Deferred pending PSE organizational hierarchy sign-off; governed by `target_manager` role in the interim.
+
+### Strictly Out of Scope (Explicit Requirements Decisions)
+- **No Gmail / Email Sync:** Emails are logged manually as activities.
+- **No File Uploads / Blob Storage:** Documents live in Google Drive; URLs are pasted into notes fields and auto-linked safely (`rel="noopener noreferrer"`).
+- **No External Autofill:** Company and contact suggestions come strictly from internal PSE records.
+- **No Standalone Events Module:** Events, campaigns, and visits are tracked as Activity types (`event`, `campaign`, `visit`).
+
+---
+
+## 2. Locked Decisions & Defaults for Open Items
+
+| # | Open Item / Ambiguity | Locked Decision for Build | Reconfigurability |
+|---|---|---|---|
+| 1 | **Pipeline stages** | Seed 8 stages: `New`, `Scoping`, `Preparation`, `Submitted`, `Pending` (`kind = open`), `Won` (`kind = won`), `Lost` (`kind = lost`), `Abandoned` (`kind = junk`). | Stored in `pipeline_stages`; all reports group by `kind`, never hardcoded stage names. |
+| 2 | **Lead KPI definition** | Count of pipelines created within the selected period. | Isolated in SQL function `fn_lead_count(p_start, p_end, p_user)` for single-place updates. |
+| 3 | **Category vs. Vertical terminology** | Treated as two linked dimensions: 6 `contribution_categories` (`DSP`, `SAC`, `Disaster Campaign`, `Project`, `Event & Campaign`, `General`) mapped to 3 `verticals` (`DSP`, `VBD`, `Project`) via `category_vertical_map` (`DSP → DSP`, `Project → Project`, others `→ VBD`). | Editable in `category_vertical_map` table. |
+| 4 | **Achievement definition** | `Achievement = SUM(pipeline_receipts.amount_base)` where `received_on` falls in the period. Won deals without full receipts show the difference as *"Won, not yet received"*. | Isolated in `fn_achievement` and `fn_won_unrealized`. |
+| 5 | **Monthly Target vs. Achievement** | Targets are set quarterly and annually. Monthly view displays `Quarter Target ÷ 3`, explicitly labelled *"pro-rata"*. | Computed in `fn_target` and labelled in UI. |
+| 6 | **Over-achievement & Carry-forward** | No carry-forward between quarters. Over-achievement in Q1 (`> 100%`) stays in Q1; Q2 target remains unchanged. Annual actual = sum of all receipts in the year. | Enforced by period-bounded SQL queries and immutable `target_quarters`. |
+| 7 | **Calendar vs. Fiscal Year & Currency** | Calendar year (`fiscal_year_start_month = 1`); base currency `BDT` (`৳`). Foreign currencies (`USD`, `EUR`, `GBP`) converted to `amount_base` at write time via `fx_rates`. | Stored in `settings`, `currencies`, and `fx_rates`. |
+| 8 | **Contact active/inactive status** | Included on `contacts.status` (`active` | `inactive`, default `active`). | Filterable column on `contacts`. |
+| 9 | **Target edit permissions** | Restricted to `target_manager` (e.g., Safina) and `admin` roles; read-only for `member`. Locked permanently once published (`locked_at IS NOT NULL`). | Enforced via RLS policies and `BEFORE` triggers on target tables. |
+| 10 | **Meetings vs. Activity type `meeting`** | Structured `meetings` table drives all Meeting KPIs on the dashboard. Activity type `meeting` is retained for informal activity logging only. | Separated at schema and SQL function level. |
+| 11 | **Database Connection & Auth Mechanism** | Connect strictly via the Supabase Cloud PostgreSQL **Session Pooler URI (`DATABASE_URL`, port `5432`)** using `pg` (`node-postgres`) and Typed Parameterized SQL in `repository.ts` (no separate ORM layer). Authentication uses PostgreSQL credential verification (`scrypt`) + standard RFC 7519 **HS256 JWT** HTTP-only session cookies (`AUTH_SECRET`), setting `request.jwt.claim.sub` / `app.current_user_id` per transaction so PostgreSQL Row-Level Security (RLS) policies and triggers execute directly in the database without requiring external Supabase API keys. | Controlled via `src/shared/lib/supabase/` and `src/shared/lib/rbac/`. |
+| 12 | **Package Manager** | Standardized on `npm` (`package-lock.json`, `npm ci`) across local development and GitHub Actions CI. | Configured in `package.json` and `.github/workflows/ci.yml`. |
+
 # Caching & Query Optimization (`P8`)
 
 This document describes the three-layer caching architecture, security invariants, write-to-tag invalidation matrix, PostgreSQL index optimizations (`010_dashboard_perf_indexes.sql`), and benchmark results on a **10,000-contact / 5,000-pipeline / 3,000-receipt / 5,000-meeting / 20,000-activity** dataset.
@@ -180,3 +243,43 @@ Both [`src/shared/lib/cache/cache.test.ts`](../src/shared/lib/cache/cache.test.t
 ✓ Cache invalidation verified: before=34226000 BDT -> +250000 BDT receipt + invalidateTags -> after=34476000 BDT
 ✓ Warm cache p95 = 0.04 ms (target < 300 ms)
 ```
+
+# Known Limitations & Deferred Scope (`P9`)
+
+This document records intentional MVP scope cuts, architectural trade-offs, and open domain items awaiting final sign-off from the Private Sector Engagement (PSE) team.
+
+---
+
+## 1. Intentional Scope Cuts (Per Requirements & `PHASES.md`)
+
+1. **No Gmail / Email Sync:** Outbound and inbound emails are logged manually as Activity records (`type = 'email'`). Automated inbox sync is out of scope for data-privacy and security compliance.
+2. **No File Uploads or Blob Storage:** Contracts, MoUs, and valuation sheets are stored in the team's Google Drive; users paste Drive URLs into notes fields (`contacts.notes`, `pipelines.notes`, `activities.notes`), where `<AutoLinkedNotes />` renders them as safe clickable external links (`target="_blank" rel="noopener noreferrer"`).
+3. **No External Company Autofill:** Organization and contact suggestions come strictly from internal PSE records via `<ContactPicker />` and `<Combobox />`.
+4. **No Standalone Events Module:** Events, campaigns, and visits are tracked inside the **Activities** module (`event`, `campaign`, `visit` types) and surfaced on the Non-Monetary Dashboard lens.
+5. **Odoo CSV Bulk Importer UI Deferred:** The database schema (`001`–`010`) and channel deduplication service (`normalizeEmail`, `normalizePhoneE164`, `findByNormalizedChannels`) are production-ready, but an interactive CSV column-mapping UI is deferred until PSE provides final Odoo export column headers.
+6. **Stage Board Drag-and-Drop Deferred:** `/pipelines` provides both a tabular List view and a stage-grouped Board view. Changing a pipeline's stage uses `<StageQuickSelect />` (keyboard-accessible `<Select />` with confirmation and mandatory `lost_reason` modals) rather than pointer drag-and-drop.
+7. **Admin Reference Table Editing via SQL Seed:** `/admin` provides live user provisioning and role/status/PSE-membership management (`admin`, `target_manager`, `member`) plus read-only inspection of reference tables (`pipeline_stages`, `category_vertical_map`, `fx_rates`). Modifying stages, categories, or FX rates is performed via idempotent SQL migrations or `supabase/seed.sql`.
+
+---
+
+## 2. Domain & Reporting Trade-offs
+
+1. **Monthly Pro-Rata Target Rounding (1–2 Cent Drift):**
+   - Targets are set and locked at the **annual** and **quarterly** levels (`target_plans`, `target_quarters`, `target_lines`).
+   - When the Dashboard is viewed in **Monthly** mode, `fn_target` computes each member × vertical line as `ROUND(l.amount / 3, 2)` and the UI labels the figure **Pro-rata (quarter ÷ 3)**. Because each line is rounded to 2 decimal places independently, the sum of monthly pro-rata lines can differ by `৳ 0.01–0.02` from the exact one-third of the quarterly total.
+2. **Pipeline Dashboard Tiles vs. Pipelines List Date Basis:**
+   - On `/dashboard`, `fn_pipeline_by_kind` and `fn_lead_count` count pipelines **created** within the selected period (`created_at`), and `fn_won_unrealized` sums deals **won** within the selected period (`won_at`).
+   - On `/pipelines`, date filters operate on `expected_close`. Consequently, only Non-Monetary Dashboard tiles (Meetings and Activities, which share the same date basis as `/meetings` and `/activities`) render direct period drill-down links.
+3. **Lead KPI Formula Pending PSE Confirmation:**
+   - As documented in `docs/ASSUMPTIONS.md`, the Lead KPI currently counts pipelines created in the period (`fn_lead_count` in `010_dashboard_perf_indexes.sql`). If PSE later refines this definition (for example, filtering by initial stage or contact creation), only `fn_lead_count` needs to be updated.
+4. **Manual FX Rate Table (`fx_rates`):**
+   - Foreign-currency pipelines and receipts (`USD`, `EUR`, `GBP`) are converted to base currency (`BDT`) at write time using the most recent rate in `fx_rates` on or before the effective date. Live central-bank FX polling is not enabled.
+
+---
+
+## 3. Security & Operational Notes
+
+1. **Public Demo Credentials vs. Brute-Force Lockout (`login_attempts`):**
+   - `signInAction` locks an email address for 15 minutes after 5 failed sign-in attempts within a 15-minute window (`007_security_hardening.sql`). Because the demo email addresses (`admin@pse.org`, `safina@pse.org`, `rahim@pse.org`) are publicly listed on `/login` and in `README.md` for evaluators, repeated intentional bad-password attempts against a demo account will temporarily lock that demo email for 15 minutes.
+2. **Serverless Connection Pool Sizing (`DATABASE_POOL_MAX`):**
+   - `getDbPool()` defaults to `max = 3` connections per serverless instance against the Supabase Session Pooler (`port 5432`). Dashboard lens queries are batched into 1 SQL round-trip per lens (`fetchMonetaryRaw`, `fetchNonMonetaryRaw`) so cold cache misses never queue on the 3-connection pool.

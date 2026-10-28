@@ -3,7 +3,7 @@
 # Claude Code notes
 
 ## Workflow
-- Start a session by reading MEMORY.md (current phase and what exists), then the relevant section of PHASES.md. Implement against its acceptance criteria.
+- Start a session by reading MEMORY.md (current phase and what exists), then the relevant phase in docs/08_Project_Management.md. Implement against its acceptance criteria.
 - Next.js here is a newer version than your training data. Check `node_modules/next/dist/docs/` before using a Next API (caching, proxy/middleware, `revalidateTag` signatures, async `searchParams`/`cookies`).
 - Match the surrounding module: copy the shape of `src/modules/meetings` (schema → service → repository → actions → queries → components) when adding a module or feature, including its `*.test.ts` and `loading.tsx`.
 - When a phase finishes: run the full verification list from AGENTS.md, then update the Phase Tracker and "What exists" in MEMORY.md and note any new migration number.

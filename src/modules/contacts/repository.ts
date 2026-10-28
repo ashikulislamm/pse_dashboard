@@ -386,104 +386,101 @@ export async function getContactDetail(
     const base = rows[0];
     if (!base) return null;
 
-    const [channelsRes, individualsRes, pipelinesRes, meetingsRes, activitiesRes] =
-      await Promise.all([
-        client.query<ContactChannelRow>(
-          `SELECT id, contact_id, kind, value, value_normalized, is_primary
-           FROM contact_channels
-           WHERE contact_id = $1
-           ORDER BY is_primary DESC, kind ASC, value ASC`,
-          [contactId],
-        ),
-        client.query<AffiliatedIndividualRow>(
-          `SELECT
-             ind.id,
-             ind.name,
-             ind.designation,
-             ind.status,
-             pch.value AS primary_channel
-           FROM contacts ind
-           LEFT JOIN LATERAL (
-             SELECT value
-             FROM contact_channels
-             WHERE contact_id = ind.id
-             ORDER BY is_primary DESC, id ASC
-             LIMIT 1
-           ) pch ON true
-           WHERE ind.organization_id = $1
-           ORDER BY ind.name ASC`,
-          [contactId],
-        ),
-        client.query<{
-          id: string;
-          deal_name: string;
-          contribution_type: ContributionType;
-          stage_name: string;
-          stage_kind: StageKind;
-          expected_amount: string;
-          currency: string;
-          amount_base: string;
-          expected_close: string | null;
-          focal_person_name: string;
-          role_in_deal: 'Primary Donor' | 'Point of Contact' | 'Secondary Contact';
-        }>(
-          `SELECT
-             pl.id,
-             pl.deal_name,
-             pl.contribution_type,
-             s.name AS stage_name,
-             s.kind AS stage_kind,
-             pl.expected_amount::text,
-             pl.currency,
-             pl.amount_base::text,
-             pl.expected_close::text,
-             fp.full_name AS focal_person_name,
-             CASE
-               WHEN pl.contact_id = $1 THEN 'Primary Donor'
-               WHEN pl.poc_contact_id = $1 THEN 'Point of Contact'
-               ELSE 'Secondary Contact'
-             END AS role_in_deal
-           FROM pipelines pl
-           JOIN pipeline_stages s ON s.id = pl.stage_id
-           JOIN profiles fp ON fp.id = pl.focal_person_id
-           WHERE pl.contact_id = $1
-              OR pl.poc_contact_id = $1
-              OR pl.secondary_contact_id = $1
-           ORDER BY pl.created_at DESC`,
-          [contactId],
-        ),
-        client.query<RelatedMeetingRow>(
-          `SELECT
-             m.id,
-             m.scheduled_at::text,
-             m.status,
-             m.description,
-             pr.full_name AS owner_name,
-             pl.deal_name AS pipeline_name
-           FROM meetings m
-           JOIN profiles pr ON pr.id = m.owner_id
-           LEFT JOIN pipelines pl ON pl.id = m.pipeline_id
-           WHERE m.contact_id = $1
-           ORDER BY m.scheduled_at DESC`,
-          [contactId],
-        ),
-        client.query<RelatedActivityRow>(
-          `SELECT
-             a.id,
-             a.type,
-             a.class,
-             a.title,
-             a.status,
-             a.occurred_at::text,
-             a.due_at::text,
-             pr.full_name AS owner_name
-           FROM activities a
-           JOIN profiles pr ON pr.id = a.owner_id
-           WHERE a.contact_id = $1
-           ORDER BY COALESCE(a.occurred_at, a.due_at, a.created_at) DESC`,
-          [contactId],
-        ),
-      ]);
+    const channelsRes = await client.query<ContactChannelRow>(
+      `SELECT id, contact_id, kind, value, value_normalized, is_primary
+       FROM contact_channels
+       WHERE contact_id = $1
+       ORDER BY is_primary DESC, kind ASC, value ASC`,
+      [contactId],
+    );
+    const individualsRes = await client.query<AffiliatedIndividualRow>(
+      `SELECT
+         ind.id,
+         ind.name,
+         ind.designation,
+         ind.status,
+         pch.value AS primary_channel
+       FROM contacts ind
+       LEFT JOIN LATERAL (
+         SELECT value
+         FROM contact_channels
+         WHERE contact_id = ind.id
+         ORDER BY is_primary DESC, id ASC
+         LIMIT 1
+       ) pch ON true
+       WHERE ind.organization_id = $1
+       ORDER BY ind.name ASC`,
+      [contactId],
+    );
+    const pipelinesRes = await client.query<{
+      id: string;
+      deal_name: string;
+      contribution_type: ContributionType;
+      stage_name: string;
+      stage_kind: StageKind;
+      expected_amount: string;
+      currency: string;
+      amount_base: string;
+      expected_close: string | null;
+      focal_person_name: string;
+      role_in_deal: 'Primary Donor' | 'Point of Contact' | 'Secondary Contact';
+    }>(
+      `SELECT
+         pl.id,
+         pl.deal_name,
+         pl.contribution_type,
+         s.name AS stage_name,
+         s.kind AS stage_kind,
+         pl.expected_amount::text,
+         pl.currency,
+         pl.amount_base::text,
+         pl.expected_close::text,
+         fp.full_name AS focal_person_name,
+         CASE
+           WHEN pl.contact_id = $1 THEN 'Primary Donor'
+           WHEN pl.poc_contact_id = $1 THEN 'Point of Contact'
+           ELSE 'Secondary Contact'
+         END AS role_in_deal
+       FROM pipelines pl
+       JOIN pipeline_stages s ON s.id = pl.stage_id
+       JOIN profiles fp ON fp.id = pl.focal_person_id
+       WHERE pl.contact_id = $1
+          OR pl.poc_contact_id = $1
+          OR pl.secondary_contact_id = $1
+       ORDER BY pl.created_at DESC`,
+      [contactId],
+    );
+    const meetingsRes = await client.query<RelatedMeetingRow>(
+      `SELECT
+         m.id,
+         m.scheduled_at::text,
+         m.status,
+         m.description,
+         pr.full_name AS owner_name,
+         pl.deal_name AS pipeline_name
+       FROM meetings m
+       JOIN profiles pr ON pr.id = m.owner_id
+       LEFT JOIN pipelines pl ON pl.id = m.pipeline_id
+       WHERE m.contact_id = $1
+       ORDER BY m.scheduled_at DESC`,
+      [contactId],
+    );
+    const activitiesRes = await client.query<RelatedActivityRow>(
+      `SELECT
+         a.id,
+         a.type,
+         a.class,
+         a.title,
+         a.status,
+         a.occurred_at::text,
+         a.due_at::text,
+         pr.full_name AS owner_name
+       FROM activities a
+       JOIN profiles pr ON pr.id = a.owner_id
+       WHERE a.contact_id = $1
+       ORDER BY COALESCE(a.occurred_at, a.due_at, a.created_at) DESC`,
+      [contactId],
+    );
 
     return {
       ...base,
@@ -555,20 +552,18 @@ export async function listFilterMetadata(userId: string): Promise<{
   industries: string[];
 }> {
   return withUserTransaction(userId, async (client) => {
-    const [compRes, indRes] = await Promise.all([
-      client.query<{ id: string; name: string }>(
-        `SELECT id, name
-         FROM contacts
-         WHERE type = 'company'
-         ORDER BY name ASC`,
-      ),
-      client.query<{ industry: string }>(
-        `SELECT DISTINCT btrim(industry) AS industry
-         FROM contacts
-         WHERE industry IS NOT NULL AND btrim(industry) <> ''
-         ORDER BY industry ASC`,
-      ),
-    ]);
+    const compRes = await client.query<{ id: string; name: string }>(
+      `SELECT id, name
+       FROM contacts
+       WHERE type = 'company'
+       ORDER BY name ASC`,
+    );
+    const indRes = await client.query<{ industry: string }>(
+      `SELECT DISTINCT btrim(industry) AS industry
+       FROM contacts
+       WHERE industry IS NOT NULL AND btrim(industry) <> ''
+       ORDER BY industry ASC`,
+    );
 
     return {
       companies: compRes.rows,

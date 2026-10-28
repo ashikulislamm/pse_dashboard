@@ -58,7 +58,7 @@ async function expectFailure(name, fn, expectedMessagePattern) {
 }
 
 async function runTests() {
-  console.log('Running Phase 2 PostgreSQL Invariant & RLS Tests...\n');
+  console.log('Running PostgreSQL Invariant, Trigger, Function & RLS Tests...\n');
 
   // 1. Duplicate email rejected
   await expectFailure(
@@ -212,6 +212,21 @@ async function runTests() {
     /target plan is locked/i,
   );
 
+  // 10. Moving pipeline to Lost without lost_reason is rejected by trigger
+  await expectFailure(
+    '10. Moving pipeline to Lost stage without lost_reason is rejected',
+    async (client) => {
+      const { rows: lostStage } = await client.query(
+        `SELECT id FROM pipeline_stages WHERE kind = 'lost' LIMIT 1`,
+      );
+      await client.query(
+        `UPDATE pipelines SET stage_id = $1, lost_reason = NULL WHERE id = '30000000-0000-0000-0000-000000000002'`,
+        [lostStage[0].id],
+      );
+    },
+    /lost_reason is required/i,
+  );
+
   // 11. publish_target_plan is SECURITY DEFINER, so it carries its own role guard
   await expectFailure(
     '11a. Member cannot publish a target plan',
@@ -231,21 +246,6 @@ async function runTests() {
       await client.query('SELECT publish_target_plan($1)', [LOCKED_PLAN_ID]);
     },
     /already locked/i,
-  );
-
-  // 10. Moving pipeline to Lost without lost_reason is rejected by trigger
-  await expectFailure(
-    '10. Moving pipeline to Lost stage without lost_reason is rejected',
-    async (client) => {
-      const { rows: lostStage } = await client.query(
-        `SELECT id FROM pipeline_stages WHERE kind = 'lost' LIMIT 1`,
-      );
-      await client.query(
-        `UPDATE pipelines SET stage_id = $1, lost_reason = NULL WHERE id = '30000000-0000-0000-0000-000000000002'`,
-        [lostStage[0].id],
-      );
-    },
-    /lost_reason is required/i,
   );
 
   // 12. Dashboard read-model functions reproduce a hand-computed result (all rolled back)
@@ -380,7 +380,170 @@ async function runTests() {
     }
   }
 
-  console.log('\nAll Phase 2 PostgreSQL Invariant & RLS tests passed!');
+  // 13. Company pipeline without poc_contact_id is rejected
+  await expectFailure(
+    '13. Company pipeline without poc_contact_id is rejected by CHECK constraint',
+    async (client) => {
+      const { rows: stages } = await client.query(`SELECT id FROM pipeline_stages LIMIT 1`);
+      const { rows: cats } = await client.query(`SELECT id FROM contribution_categories LIMIT 1`);
+      await client.query(
+        `INSERT INTO pipelines (
+           deal_name, focal_person_id, contribution_type, category_id, party_type,
+           contact_id, poc_contact_id, stage_id, expected_amount, currency, amount_base
+         )
+         VALUES ('Company Without POC', $1, 'cash', $2, 'company', $3, NULL, $4, 100000, 'BDT', 100000)`,
+        [MEMBER_ID, cats[0].id, EXISTING_CONTACT_ID, stages[0].id],
+      );
+    },
+    /check|poc_contact_id/i,
+  );
+
+  // 14. Column-level privilege isolation: authenticated role cannot SELECT password_hash from profiles
+  await expectFailure(
+    '14. Authenticated role is blocked from reading profiles.password_hash (007_security_hardening)',
+    async (client) => {
+      await client.query('SET LOCAL ROLE authenticated');
+      await client.query(`SELECT set_config('request.jwt.claim.sub', $1, true)`, [MEMBER_ID]);
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [MEMBER_ID]);
+      await client.query('SELECT id, password_hash FROM profiles LIMIT 1');
+    },
+    /permission denied/i,
+  );
+
+  // 15. Member RLS owner guard: member can read all PSE pipelines, but cannot UPDATE another member's pipeline
+  {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const NADIA_ID = '10000000-0000-0000-0000-000000000005';
+      const { rows: stages } = await client.query(`SELECT id FROM pipeline_stages WHERE kind = 'open' LIMIT 1`);
+      const { rows: cats } = await client.query(`SELECT id FROM contribution_categories LIMIT 1`);
+      const { rows: inserted } = await client.query(
+        `INSERT INTO pipelines (
+           deal_name, focal_person_id, contribution_type, category_id, party_type,
+           contact_id, stage_id, expected_amount, currency, amount_base, created_by
+         )
+         VALUES ('Nadia Deal', $1, 'cash', $2, 'individual', $3, $4, 50000, 'BDT', 50000, $1)
+         RETURNING id`,
+        [NADIA_ID, cats[0].id, EXISTING_CONTACT_ID, stages[0].id],
+      );
+      const nadiaPipeId = inserted[0].id;
+
+      await client.query('SET LOCAL ROLE authenticated');
+      await client.query(`SELECT set_config('request.jwt.claim.sub', $1, true)`, [MEMBER_ID]);
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [MEMBER_ID]);
+
+      const readRes = await client.query(`SELECT id FROM pipelines WHERE id = $1`, [nadiaPipeId]);
+      assert.equal(readRes.rowCount, 1, '[FAIL] 15a. PSE member must be able to read all PSE pipelines');
+
+      const updateRes = await client.query(
+        `UPDATE pipelines SET deal_name = 'Hijacked Deal' WHERE id = $1`,
+        [nadiaPipeId],
+      );
+      assert.equal(updateRes.rowCount, 0, '[FAIL] 15b. PSE member must not be able to update another member pipeline');
+
+      console.log('  ✓ 15. Member RLS owner guard: member reads all PSE records but cannot update another member pipeline');
+    } finally {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
+  }
+
+  // 16. Stage transition trigger sets won_at, appends pipeline_stage_history, and logs to audit_log
+  {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [MEMBER_ID]);
+      const { rows: openStages } = await client.query(`SELECT id FROM pipeline_stages WHERE kind = 'open' LIMIT 1`);
+      const { rows: wonStages } = await client.query(`SELECT id FROM pipeline_stages WHERE kind = 'won' LIMIT 1`);
+      const { rows: cats } = await client.query(`SELECT id FROM contribution_categories LIMIT 1`);
+
+      const { rows: created } = await client.query(
+        `INSERT INTO pipelines (
+           deal_name, focal_person_id, contribution_type, category_id, party_type,
+           contact_id, stage_id, expected_amount, currency, amount_base, created_by
+         )
+         VALUES ('Trigger Check Deal', $1, 'cash', $2, 'individual', $3, $4, 75000, 'BDT', 75000, $1)
+         RETURNING id, won_at`,
+        [MEMBER_ID, cats[0].id, EXISTING_CONTACT_ID, openStages[0].id],
+      );
+      const pipeId = created[0].id;
+      assert.equal(created[0].won_at, null, '[FAIL] 16a. Open pipeline should have won_at = NULL');
+
+      const { rows: updated } = await client.query(
+        `UPDATE pipelines SET stage_id = $1 WHERE id = $2 RETURNING won_at`,
+        [wonStages[0].id, pipeId],
+      );
+      assert.notEqual(updated[0].won_at, null, '[FAIL] 16b. Moving to Won stage must auto-populate won_at');
+
+      const { rows: history } = await client.query(
+        `SELECT from_stage, to_stage FROM pipeline_stage_history WHERE pipeline_id = $1 ORDER BY id ASC`,
+        [pipeId],
+      );
+      assert.equal(history.length, 2, '[FAIL] 16c. pipeline_stage_history should have initial + transition rows');
+      assert.equal(history[0].from_stage, null);
+      assert.equal(history[1].to_stage, wonStages[0].id);
+
+      const { rows: audits } = await client.query(
+        `SELECT action FROM audit_log WHERE table_name = 'pipelines' AND row_id = $1::text ORDER BY id ASC`,
+        [pipeId],
+      );
+      assert.equal(audits.length, 2, '[FAIL] 16d. audit_log should record INSERT and UPDATE on pipelines');
+
+      console.log('  ✓ 16. Stage triggers auto-set won_at, append pipeline_stage_history, and write audit_log entries');
+    } finally {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
+  }
+
+  // 17. Non-monetary dashboard SQL functions exclude cancelled activities and deduplicate engaged contacts
+  {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO activities (type, class, title, owner_id, contact_id, status, occurred_at)
+         VALUES
+           ('visit', 'independent', 'Completed Visit', $1, $2, 'done', '2033-03-10 10:00:00Z'),
+           ('visit', 'independent', 'Cancelled Visit', $1, $2, 'cancelled', '2033-03-11 10:00:00Z')`,
+        [MEMBER_ID, EXISTING_CONTACT_ID],
+      );
+      await client.query(
+        `INSERT INTO meetings (contact_id, scheduled_at, status, description, owner_id)
+         VALUES ($2, '2033-03-12 14:00:00Z', 'done', 'Follow-up meeting with same contact', $1)`,
+        [MEMBER_ID, EXISTING_CONTACT_ID],
+      );
+
+      const { rows: actSummary } = await client.query(
+        `SELECT activity_count, distinct_contacts
+         FROM fn_activity_summary('2033-03-01', '2033-03-31', $1)
+         WHERE type = 'visit' AND class = 'independent'`,
+        [MEMBER_ID],
+      );
+      assert.equal(actSummary.length, 1);
+      assert.equal(actSummary[0].activity_count, 1, '[FAIL] 17a. Cancelled activity must be excluded');
+      assert.equal(actSummary[0].distinct_contacts, 1, '[FAIL] 17b. Distinct contacts on visit');
+
+      const { rows: engaged } = await client.query(
+        `SELECT fn_contacts_engaged('2033-03-01', '2033-03-31', $1) AS c`,
+        [MEMBER_ID],
+      );
+      assert.equal(
+        engaged[0].c,
+        1,
+        '[FAIL] 17c. Contact touched by both a meeting and an activity must be counted once',
+      );
+
+      console.log('  ✓ 17. Non-monetary functions exclude cancelled activities and deduplicate contacts across meetings & activities');
+    } finally {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
+  }
+
+  console.log('\nAll 17 PostgreSQL Invariant, Trigger, Function & RLS tests passed!');
   await pool.end();
 }
 
