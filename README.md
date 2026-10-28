@@ -151,6 +151,5 @@ Full runbook: [docs/05_Technical_Docs.md](docs/05_Technical_Docs.md).
 | [docs/02_Architecture_and_Database.md](docs/02_Architecture_and_Database.md) | Architecture, schema, security, caching design |
 | [docs/04_User_Guide.md](docs/04_User_Guide.md) | How to use each module and read the dashboard |
 | [docs/05_Technical_Docs.md](docs/05_Technical_Docs.md) | Setup, deployment, caching tags, testing, limitations |
-| [docs/07_Migration.md](docs/07_Migration.md) | Odoo import design and mapping |
-| [docs/08_Project_Management.md](docs/08_Project_Management.md) | Plan and phase status |
+| [docs/06_Project_Management.md](docs/06_Project_Management.md) | Plan and phase status |
 | [DESIGN.md](DESIGN.md) | Design system and enforced UI rules |
